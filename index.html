@@ -3,183 +3,441 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CheckLoops Admin Importer</title>
+  <title>CheckLoops Admin Dashboard</title>
   <style>
     :root {
-      --bg: #f4f7fb;
+      --bg: #eef3f9;
       --panel: #ffffff;
-      --text: #1d2433;
-      --muted: #5b6475;
-      --line: #dde3ef;
-      --accent: #0b6ef3;
-      --accent-2: #0958c3;
-      --good: #0f7b38;
+      --line: #d8e2f0;
+      --text: #1f2937;
+      --muted: #556176;
+      --primary: #0f62e6;
+      --primary-2: #0b4eb8;
+      --ok: #127c3f;
+      --warn: #a15d00;
       --bad: #b42318;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-      background: linear-gradient(165deg, #eef4ff 0%, #f8fafc 70%);
       color: var(--text);
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(circle at 8% 4%, #d9e8ff 0%, transparent 40%),
+        linear-gradient(165deg, #edf3fb 0%, #f8fbff 65%);
       min-height: 100vh;
     }
     .wrap {
-      max-width: 880px;
+      max-width: 1180px;
       margin: 0 auto;
-      padding: 36px 16px 56px;
+      padding: 24px 16px 40px;
+    }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      letter-spacing: 0.2px;
+    }
+    .hint { margin: 6px 0 0; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
     }
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 12px 30px rgba(16, 24, 40, 0.08);
+      box-shadow: 0 14px 30px rgba(20, 39, 78, 0.06);
+      padding: 16px;
     }
-    h1 {
+    .panel h2 {
       margin: 0 0 8px;
-      font-size: 1.8rem;
-      line-height: 1.2;
-    }
-    p { margin: 0 0 14px; color: var(--muted); }
-    label { font-weight: 600; display: block; margin: 14px 0 8px; }
-    input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #cdd5e1;
-      border-radius: 10px;
-      font-size: 0.98rem;
+      font-size: 1.1rem;
     }
     .row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 8px;
+    }
+    .row3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    label {
+      display: block;
+      margin: 10px 0 6px;
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+    input {
+      width: 100%;
+      border: 1px solid #c8d5e6;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
     }
     button {
-      margin-top: 16px;
       border: 0;
       border-radius: 10px;
-      background: var(--accent);
-      color: #fff;
       font-weight: 700;
-      padding: 11px 16px;
-      cursor: pointer;
-    }
-    button:hover { background: var(--accent-2); }
-    .status {
-      margin-top: 14px;
       padding: 10px 12px;
-      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.93rem;
+    }
+    .primary { background: var(--primary); color: #fff; }
+    .primary:hover { background: var(--primary-2); }
+    .ghost {
+      background: #e8f0ff;
+      color: #1848a4;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .status {
+      margin-top: 12px;
       border: 1px solid var(--line);
-      background: #f9fbff;
+      border-radius: 10px;
+      background: #f8fbff;
+      padding: 10px;
       white-space: pre-wrap;
       word-break: break-word;
     }
-    .ok { color: var(--good); }
-    .bad { color: var(--bad); }
-    code {
-      background: #f1f5f9;
-      padding: 2px 6px;
-      border-radius: 6px;
-      font-size: 0.92em;
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 8px;
     }
-    @media (max-width: 720px) {
-      .row { grid-template-columns: 1fr; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fbfdff;
+    }
+    .k { font-size: 0.77rem; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    .v { font-size: 1.12rem; font-weight: 700; margin-top: 4px; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.92rem;
+    }
+    th, td {
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 6px;
+    }
+    th {
+      font-size: 0.76rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    td a { color: #1848a4; text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9em;
+    }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 620px) {
+      .row, .row3 { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <section class="panel">
-      <h1>CheckLoops Admin Importer</h1>
-      <p>Trigger the GitHub Action that downloads NHS CSV files and upserts one GP practice to Supabase.</p>
-      <p>Everything runs in GitHub Actions, not on your local computer.</p>
+    <div class="top">
+      <div>
+        <h1>CheckLoops Import Dashboard</h1>
+        <p class="hint">Run NHS CSV imports, track live workflow status, and verify Supabase results in one place.</p>
+      </div>
+    </div>
 
-      <label for="owner">GitHub Owner</label>
-      <input id="owner" value="MagicManBen" />
-
-      <label for="repo">GitHub Repo</label>
-      <input id="repo" value="CheckLoopsAdmin" />
-
-      <div class="row">
-        <div>
-          <label for="branch">Branch</label>
-          <input id="branch" value="main" />
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <div class="row3">
+          <div>
+            <label for="owner">GitHub Owner</label>
+            <input id="owner" value="MagicManBen" />
+          </div>
+          <div>
+            <label for="repo">GitHub Repo</label>
+            <input id="repo" value="CheckLoopsAdmin" />
+          </div>
+          <div>
+            <label for="branch">Branch</label>
+            <input id="branch" value="main" />
+          </div>
         </div>
-        <div>
-          <label for="ods">ODS Code</label>
-          <input id="ods" value="M83076" />
+        <div class="row">
+          <div>
+            <label for="ods">ODS Code</label>
+            <input id="ods" value="M83076" />
+          </div>
+          <div>
+            <label for="token">GitHub Token</label>
+            <input id="token" type="password" placeholder="ghp_... (actions:write)" />
+          </div>
         </div>
+        <div class="actions">
+          <button id="runBtn" class="primary" type="button">Run Import</button>
+          <button id="refreshRunsBtn" class="ghost" type="button">Refresh Runs</button>
+          <button id="watchBtn" class="ghost" type="button">Watch Current Run</button>
+        </div>
+        <div id="status" class="status">Ready.</div>
       </div>
 
-      <label for="token">GitHub Token (needs <code>actions:write</code> on this repo)</label>
-      <input id="token" type="password" placeholder="ghp_..." />
+      <div class="panel">
+        <h2>Supabase Check</h2>
+        <div class="row">
+          <div>
+            <label for="supabaseUrl">Supabase URL</label>
+            <input id="supabaseUrl" value="https://kvrcmqpwdkfiqemybmkc.supabase.co" />
+          </div>
+          <div>
+            <label for="supabaseAnonKey">Supabase Anon/Publishable Key</label>
+            <input id="supabaseAnonKey" type="password" placeholder="eyJ..." />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="checkDataBtn" class="primary" type="button">Check Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import Time (UTC)</div><div id="kLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">Rows Found</div><div id="kRows" class="v">-</div></div>
+          <div class="card"><div class="k">Male ALL</div><div id="kMaleAll" class="v">-</div></div>
+          <div class="card"><div class="k">Female ALL</div><div id="kFemaleAll" class="v">-</div></div>
+        </div>
+        <div id="dataStatus" class="status">No data check yet.</div>
+      </div>
+    </section>
 
-      <button id="runBtn" type="button">Run Import Workflow</button>
-      <div id="status" class="status">Ready.</div>
+    <section class="panel">
+      <h2>Recent Import Runs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Conclusion</th>
+            <th>Created</th>
+            <th>Updated</th>
+            <th>Actor</th>
+          </tr>
+        </thead>
+        <tbody id="runsBody">
+          <tr><td colspan="6">No runs loaded yet.</td></tr>
+        </tbody>
+      </table>
     </section>
   </main>
 
   <script>
+    const fields = ["owner", "repo", "branch", "ods", "supabaseUrl", "supabaseAnonKey"];
     const statusEl = document.getElementById("status");
-    const fields = ["owner", "repo", "branch", "ods"];
+    const dataStatusEl = document.getElementById("dataStatus");
+    const runsBody = document.getElementById("runsBody");
+    let watchInterval = null;
 
-    fields.forEach((id) => {
-      const key = `checkloops_${id}`;
-      const el = document.getElementById(id);
-      const saved = localStorage.getItem(key);
-      if (saved) el.value = saved;
-      el.addEventListener("input", () => localStorage.setItem(key, el.value.trim()));
-    });
-
-    function setStatus(text, isError = false) {
+    function setStatus(text, tone = "ok") {
       statusEl.textContent = text;
-      statusEl.className = `status ${isError ? "bad" : "ok"}`;
+      statusEl.className = `status ${tone}`;
+    }
+    function setDataStatus(text, tone = "ok") {
+      dataStatusEl.textContent = text;
+      dataStatusEl.className = `status ${tone}`;
+    }
+    function val(id) {
+      return document.getElementById(id).value.trim();
+    }
+    function saveFields() {
+      for (const id of fields) {
+        const key = `checkloops_${id}`;
+        localStorage.setItem(key, val(id));
+      }
+    }
+    function loadFields() {
+      for (const id of fields) {
+        const key = `checkloops_${id}`;
+        const saved = localStorage.getItem(key);
+        if (saved) document.getElementById(id).value = saved;
+        document.getElementById(id).addEventListener("input", saveFields);
+      }
+    }
+    function ghHeaders() {
+      const token = val("token");
+      if (!token) throw new Error("GitHub token is required for run controls.");
+      return {
+        "Accept": "application/vnd.github+json",
+        "Authorization": `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28"
+      };
+    }
+    function fmtTime(ts) {
+      if (!ts) return "-";
+      const d = new Date(ts);
+      return `${d.toISOString().replace("T", " ").replace(".000Z", "Z")}`;
+    }
+    function badgeClass(conclusion) {
+      if (conclusion === "success") return "ok";
+      if (conclusion === "failure" || conclusion === "cancelled" || conclusion === "timed_out") return "bad";
+      return "warn";
+    }
+    function updateRunsTable(runs) {
+      if (!runs.length) {
+        runsBody.innerHTML = `<tr><td colspan="6">No import workflow runs yet.</td></tr>`;
+        return;
+      }
+      runsBody.innerHTML = runs.map((run) => `
+        <tr>
+          <td><a href="${run.html_url}" target="_blank" rel="noreferrer">#${run.run_number}</a></td>
+          <td>${run.status || "-"}</td>
+          <td class="${badgeClass(run.conclusion)}">${run.conclusion || "-"}</td>
+          <td>${fmtTime(run.created_at)}</td>
+          <td>${fmtTime(run.updated_at)}</td>
+          <td>${run.actor?.login || "-"}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function fetchRuns() {
+      const owner = val("owner");
+      const repo = val("repo");
+      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-one-gp.yml/runs?per_page=12`;
+      const r = await fetch(url, { headers: ghHeaders() });
+      if (!r.ok) throw new Error(`Failed to fetch runs (${r.status})`);
+      const data = await r.json();
+      const runs = (data.workflow_runs || []);
+      updateRunsTable(runs);
+      return runs;
+    }
+
+    async function dispatchRun() {
+      const owner = val("owner");
+      const repo = val("repo");
+      const branch = val("branch") || "main";
+      const ods = val("ods").toUpperCase();
+      if (!owner || !repo || !branch || !ods) throw new Error("Owner, repo, branch and ODS code are required.");
+      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-one-gp.yml/dispatches`;
+      const payload = { ref: branch, inputs: { ods_code: ods } };
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...ghHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`Dispatch failed (${r.status}): ${body}`);
+      }
+      return ods;
+    }
+
+    async function checkSupabaseData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const ods = val("ods").toUpperCase();
+      if (!supabaseUrl || !apikey || !ods) throw new Error("Supabase URL, key, and ODS code are required.");
+      const q = new URLSearchParams({
+        select: "sex,age,number_of_patients,imported_at,extract_date",
+        practice_code: `eq.${ods}`,
+        order: "imported_at.desc",
+        limit: "500"
+      });
+      const url = `${supabaseUrl}/rest/v1/gp_practice_patient_age_counts?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`Supabase query failed (${r.status}): ${body}`);
+      }
+      const rows = await r.json();
+      const lastImport = rows[0]?.imported_at || null;
+      const maleAll = rows.find((x) => x.sex === "MALE" && x.age === "ALL")?.number_of_patients ?? "-";
+      const femaleAll = rows.find((x) => x.sex === "FEMALE" && x.age === "ALL")?.number_of_patients ?? "-";
+      document.getElementById("kLastImport").textContent = lastImport ? fmtTime(lastImport) : "-";
+      document.getElementById("kRows").textContent = `${rows.length}`;
+      document.getElementById("kMaleAll").textContent = `${maleAll}`;
+      document.getElementById("kFemaleAll").textContent = `${femaleAll}`;
+      const msg = rows.length
+        ? `Data check OK for ${ods}. Latest imported_at: ${fmtTime(lastImport)}`
+        : `No rows returned for ${ods}.`;
+      setDataStatus(msg, rows.length ? "ok" : "warn");
+    }
+
+    async function startWatch() {
+      if (watchInterval) clearInterval(watchInterval);
+      let cycles = 0;
+      setStatus("Watching latest run every 8s...", "warn");
+      watchInterval = setInterval(async () => {
+        cycles += 1;
+        try {
+          const runs = await fetchRuns();
+          const latest = runs[0];
+          if (!latest) return;
+          setStatus(`Latest run #${latest.run_number}: status=${latest.status}, conclusion=${latest.conclusion || "n/a"}`, badgeClass(latest.conclusion));
+          if (latest.status === "completed" || cycles >= 45) {
+            clearInterval(watchInterval);
+            watchInterval = null;
+          }
+        } catch (e) {
+          clearInterval(watchInterval);
+          watchInterval = null;
+          setStatus(String(e), "bad");
+        }
+      }, 8000);
     }
 
     document.getElementById("runBtn").addEventListener("click", async () => {
-      const owner = document.getElementById("owner").value.trim();
-      const repo = document.getElementById("repo").value.trim();
-      const branch = document.getElementById("branch").value.trim() || "main";
-      const ods = document.getElementById("ods").value.trim().toUpperCase();
-      const token = document.getElementById("token").value.trim();
-
-      if (!owner || !repo || !branch || !ods || !token) {
-        setStatus("Fill in all fields first.", true);
-        return;
-      }
-
-      setStatus("Dispatching workflow...");
-      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-one-gp.yml/dispatches`;
-      const payload = {
-        ref: branch,
-        inputs: { ods_code: ods }
-      };
-
+      saveFields();
       try {
-        const r = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Accept": "application/vnd.github+json",
-            "Authorization": `Bearer ${token}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!r.ok) {
-          const body = await r.text();
-          throw new Error(`GitHub API ${r.status}: ${body}`);
-        }
-
-        setStatus(`Workflow started for ${ods}.
-Check Actions tab:
-https://github.com/${owner}/${repo}/actions`);
-      } catch (err) {
-        setStatus(String(err), true);
+        const ods = await dispatchRun();
+        setStatus(`Import dispatched for ${ods}. Refreshing run list...`, "ok");
+        await fetchRuns();
+      } catch (e) {
+        setStatus(String(e), "bad");
       }
     });
+    document.getElementById("refreshRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchRuns();
+        setStatus("Runs refreshed.", "ok");
+      } catch (e) {
+        setStatus(String(e), "bad");
+      }
+    });
+    document.getElementById("watchBtn").addEventListener("click", startWatch);
+    document.getElementById("checkDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await checkSupabaseData();
+      } catch (e) {
+        setDataStatus(String(e), "bad");
+      }
+    });
+
+    loadFields();
+    setStatus("Ready. Add your GitHub token and refresh runs.", "warn");
   </script>
 </body>
 </html>
