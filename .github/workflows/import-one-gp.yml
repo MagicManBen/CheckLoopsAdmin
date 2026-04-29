@@ -1,0 +1,28 @@
+name: Import One GP Patient Counts
+
+on:
+  workflow_dispatch:
+    inputs:
+      ods_code:
+        description: "GP ODS code (example: M83076)"
+        required: true
+        default: "M83076"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run importer
+        env:
+          ODS_CODE: ${{ github.event.inputs.ods_code }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/import_one_gp_patient_counts.mjs
