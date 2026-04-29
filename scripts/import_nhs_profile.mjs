@@ -13,7 +13,7 @@ const TABLE_NAME = "gp_practice_nhs_profile";
 const PRACTICE_CODE = (process.env.PRACTICE_CODE || "").trim().toUpperCase();
 const NHS_API_BASE = (process.env.NHS_API_BASE || "https://sandbox.api.service.nhs.uk").trim().replace(/\/+$/, "");
 const NHS_TOKEN_URL = (process.env.NHS_TOKEN_URL || `${NHS_API_BASE}/oauth2/token`).trim();
-const NHS_SEARCH_PATH = (process.env.NHS_SEARCH_PATH || "/directory-of-services-search-api/v3/Organisations").trim();
+const NHS_SEARCH_PATH = (process.env.NHS_SEARCH_PATH || "/service-search-api").trim();
 const NHS_API_VERSION = (process.env.NHS_API_VERSION || "3").trim();
 
 const DATA_DIR = path.resolve("data");
@@ -110,12 +110,10 @@ function buildSearchUrl() {
   if (/[?&]/.test(NHS_SEARCH_PATH)) {
     return `${NHS_API_BASE}${NHS_SEARCH_PATH}`;
   }
-  const params = new URLSearchParams({
-    "api-version": NHS_API_VERSION,
-    search: PRACTICE_CODE,
-    searchFields: "OrganisationCode,ODSCode",
-    $top: "5"
-  });
+  const params = new URLSearchParams();
+  params.set("api-version", NHS_API_VERSION);
+  params.set("$filter", `OrganisationCode eq '${PRACTICE_CODE}' or ODSCode eq '${PRACTICE_CODE}'`);
+  params.set("$top", "5");
   return `${NHS_API_BASE}${NHS_SEARCH_PATH}?${params.toString()}`;
 }
 
