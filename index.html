@@ -28,15 +28,11 @@
       min-height: 100vh;
     }
     .wrap {
-      max-width: 1180px;
+      max-width: 1220px;
       margin: 0 auto;
       padding: 24px 16px 40px;
     }
     .top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
       margin-bottom: 16px;
     }
     h1 {
@@ -45,9 +41,15 @@
       letter-spacing: 0.2px;
     }
     .hint { margin: 6px 0 0; color: var(--muted); }
+    .section-title {
+      margin: 20px 0 10px;
+      font-size: 1.05rem;
+      color: #264063;
+      letter-spacing: 0.2px;
+    }
     .grid {
       display: grid;
-      grid-template-columns: 1.2fr 1fr;
+      grid-template-columns: 1.35fr 1fr;
       gap: 14px;
       margin-bottom: 14px;
     }
@@ -60,7 +62,12 @@
     }
     .panel h2 {
       margin: 0 0 8px;
-      font-size: 1.1rem;
+      font-size: 1.08rem;
+    }
+    .sub {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.93rem;
     }
     .row {
       display: grid;
@@ -150,6 +157,11 @@
     }
     td a { color: #1848a4; text-decoration: none; }
     td a:hover { text-decoration: underline; }
+    .note {
+      font-size: 0.86rem;
+      color: #49607f;
+      margin-top: 8px;
+    }
     .mono {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       font-size: 0.9em;
@@ -167,71 +179,83 @@
 <body>
   <main class="wrap">
     <div class="top">
-      <div>
-        <h1>CheckLoops Import Dashboard</h1>
-        <p class="hint">Run NHS CSV imports, track live workflow status, and verify Supabase results in one place.</p>
-      </div>
+      <h1>CheckLoops Import Dashboard</h1>
+      <p class="hint">Separate import controls for patient counts and GP workforce metrics. All processing runs in GitHub Actions.</p>
     </div>
 
+    <h2 class="section-title">Shared Repository + Credentials</h2>
+    <section class="panel">
+      <div class="row3">
+        <div>
+          <label for="owner">GitHub Owner</label>
+          <input id="owner" value="MagicManBen" />
+        </div>
+        <div>
+          <label for="repo">GitHub Repo</label>
+          <input id="repo" value="CheckLoopsAdmin" />
+        </div>
+        <div>
+          <label for="branch">Branch</label>
+          <input id="branch" value="main" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="token">GitHub Token</label>
+          <input id="token" type="password" placeholder="ghp_... (actions:write)" />
+        </div>
+        <div>
+          <label for="supabaseUrl">Supabase URL</label>
+          <input id="supabaseUrl" value="https://kvrcmqpwdkfiqemybmkc.supabase.co" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="supabaseAnonKey">Supabase Anon/Publishable Key (for dashboard checks)</label>
+          <input id="supabaseAnonKey" type="password" placeholder="eyJ..." />
+        </div>
+        <div>
+          <label for="futureIndividualZipUrl">Individual Workforce ZIP URL (future phase, not imported yet)</label>
+          <input id="futureIndividualZipUrl" value="https://files.digital.nhs.uk/D8/3AE66C/GPWIndividualCSV.032026.zip" />
+        </div>
+      </div>
+    </section>
+
+    <h2 class="section-title">Patient Count Import</h2>
     <section class="grid">
       <div class="panel">
         <h2>Workflow Control</h2>
-        <div class="row3">
-          <div>
-            <label for="owner">GitHub Owner</label>
-            <input id="owner" value="MagicManBen" />
-          </div>
-          <div>
-            <label for="repo">GitHub Repo</label>
-            <input id="repo" value="CheckLoopsAdmin" />
-          </div>
-          <div>
-            <label for="branch">Branch</label>
-            <input id="branch" value="main" />
-          </div>
-        </div>
+        <p class="sub">Imports one GP practice from male/female single-year-age CSVs.</p>
         <div class="row">
           <div>
             <label for="ods">GP Practice M/ODS Code</label>
             <input id="ods" value="M83076" />
           </div>
           <div>
-            <label for="token">GitHub Token</label>
-            <input id="token" type="password" placeholder="ghp_... (actions:write)" />
+            <label for="maleCsvUrl">Male CSV URL</label>
+            <input id="maleCsvUrl" value="https://files.digital.nhs.uk/A1/BF1917/gp-reg-pat-prac-sing-age-male.csv" />
           </div>
         </div>
         <div class="row">
           <div>
-            <label for="maleCsvUrl">Male CSV URL</label>
-            <input id="maleCsvUrl" value="https://files.digital.nhs.uk/A1/BF1917/gp-reg-pat-prac-sing-age-male.csv" />
-          </div>
-          <div>
             <label for="femaleCsvUrl">Female CSV URL</label>
             <input id="femaleCsvUrl" value="https://files.digital.nhs.uk/5D/93A12A/gp-reg-pat-prac-sing-age-female.csv" />
           </div>
+          <div></div>
         </div>
         <div class="actions">
-          <button id="runBtn" class="primary" type="button">Run Import</button>
-          <button id="refreshRunsBtn" class="ghost" type="button">Refresh Runs</button>
-          <button id="watchBtn" class="ghost" type="button">Watch Current Run</button>
+          <button id="runBtn" class="primary" type="button">Run Patient Import</button>
+          <button id="refreshRunsBtn" class="ghost" type="button">Refresh Patient Runs</button>
+          <button id="watchBtn" class="ghost" type="button">Watch Patient Run</button>
         </div>
         <div id="status" class="status">Ready.</div>
       </div>
 
       <div class="panel">
-        <h2>Supabase Check</h2>
-        <div class="row">
-          <div>
-            <label for="supabaseUrl">Supabase URL</label>
-            <input id="supabaseUrl" value="https://kvrcmqpwdkfiqemybmkc.supabase.co" />
-          </div>
-          <div>
-            <label for="supabaseAnonKey">Supabase Anon/Publishable Key</label>
-            <input id="supabaseAnonKey" type="password" placeholder="eyJ..." />
-          </div>
-        </div>
+        <h2>Patient Data Check</h2>
+        <p class="sub">Checks `gp_practice_patient_age_counts` for the selected practice code.</p>
         <div class="actions">
-          <button id="checkDataBtn" class="primary" type="button">Check Data Arrival</button>
+          <button id="checkDataBtn" class="primary" type="button">Check Patient Data Arrival</button>
         </div>
         <div class="cards">
           <div class="card"><div class="k">Last Import Time (UTC)</div><div id="kLastImport" class="v">-</div></div>
@@ -239,12 +263,12 @@
           <div class="card"><div class="k">Male ALL</div><div id="kMaleAll" class="v">-</div></div>
           <div class="card"><div class="k">Female ALL</div><div id="kFemaleAll" class="v">-</div></div>
         </div>
-        <div id="dataStatus" class="status">No data check yet.</div>
+        <div id="dataStatus" class="status">No patient data check yet.</div>
       </div>
     </section>
 
     <section class="panel">
-      <h2>Recent Import Runs</h2>
+      <h2>Recent Patient Import Runs</h2>
       <table>
         <thead>
           <tr>
@@ -257,18 +281,105 @@
           </tr>
         </thead>
         <tbody id="runsBody">
-          <tr><td colspan="6">No runs loaded yet.</td></tr>
+          <tr><td colspan="6">No patient runs loaded yet.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2 class="section-title">Workforce Metric Import</h2>
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <p class="sub">Imports high-level practice workforce metrics into `gp_practice_workforce_metrics`.</p>
+        <div class="row">
+          <div>
+            <label for="wfPracticeCode">GP Practice M/ODS Code</label>
+            <input id="wfPracticeCode" value="M83076" />
+          </div>
+          <div>
+            <label for="wfSnapshotDate">Snapshot Date (YYYY-MM-DD)</label>
+            <input id="wfSnapshotDate" value="2026-03-31" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="wfPublicationLabel">Publication Label</label>
+            <input id="wfPublicationLabel" value="General Practice Workforce 31 March 2026" />
+          </div>
+          <div>
+            <label for="wfPracticeZipUrl">Practice ZIP URL</label>
+            <input id="wfPracticeZipUrl" value="https://files.digital.nhs.uk/85/7F0D90/GPWPracticeCSV.032026.zip" />
+          </div>
+        </div>
+        <div class="note">This workflow imports the high-level practice CSV only. Individual-level ZIP is reserved for a future phase.</div>
+        <div class="actions">
+          <button id="runWorkforceBtn" class="primary" type="button">Run Workforce Import</button>
+          <button id="refreshWorkforceRunsBtn" class="ghost" type="button">Refresh Workforce Runs</button>
+          <button id="watchWorkforceBtn" class="ghost" type="button">Watch Workforce Run</button>
+        </div>
+        <div id="wfStatus" class="status">Ready.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Workforce Data Check</h2>
+        <p class="sub">Checks `gp_practice_workforce_metrics` for the selected practice and snapshot date.</p>
+        <div class="actions">
+          <button id="checkWorkforceDataBtn" class="primary" type="button">Check Workforce Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import Time (UTC)</div><div id="wfkLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">Rows Found</div><div id="wfkRows" class="v">-</div></div>
+          <div class="card"><div class="k">FTE Metrics</div><div id="wfkFte" class="v">-</div></div>
+          <div class="card"><div class="k">Headcount Metrics</div><div id="wfkHeadcount" class="v">-</div></div>
+        </div>
+        <div id="wfDataStatus" class="status">No workforce data check yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent Workforce Import Runs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Conclusion</th>
+            <th>Created</th>
+            <th>Updated</th>
+            <th>Actor</th>
+          </tr>
+        </thead>
+        <tbody id="wfRunsBody">
+          <tr><td colspan="6">No workforce runs loaded yet.</td></tr>
         </tbody>
       </table>
     </section>
   </main>
 
   <script>
-    const fields = ["owner", "repo", "branch", "ods", "maleCsvUrl", "femaleCsvUrl", "supabaseUrl", "supabaseAnonKey"];
+    const fields = [
+      "owner",
+      "repo",
+      "branch",
+      "ods",
+      "maleCsvUrl",
+      "femaleCsvUrl",
+      "supabaseUrl",
+      "supabaseAnonKey",
+      "wfPracticeCode",
+      "wfSnapshotDate",
+      "wfPublicationLabel",
+      "wfPracticeZipUrl",
+      "futureIndividualZipUrl"
+    ];
     const statusEl = document.getElementById("status");
     const dataStatusEl = document.getElementById("dataStatus");
+    const wfStatusEl = document.getElementById("wfStatus");
+    const wfDataStatusEl = document.getElementById("wfDataStatus");
     const runsBody = document.getElementById("runsBody");
+    const wfRunsBody = document.getElementById("wfRunsBody");
     let watchInterval = null;
+    let wfWatchInterval = null;
 
     function setStatus(text, tone = "ok") {
       statusEl.textContent = text;
@@ -277,6 +388,14 @@
     function setDataStatus(text, tone = "ok") {
       dataStatusEl.textContent = text;
       dataStatusEl.className = `status ${tone}`;
+    }
+    function setWfStatus(text, tone = "ok") {
+      wfStatusEl.textContent = text;
+      wfStatusEl.className = `status ${tone}`;
+    }
+    function setWfDataStatus(text, tone = "ok") {
+      wfDataStatusEl.textContent = text;
+      wfDataStatusEl.className = `status ${tone}`;
     }
     function val(id) {
       return document.getElementById(id).value.trim();
@@ -299,8 +418,8 @@
       const token = val("token");
       if (!token) throw new Error("GitHub token is required for run controls.");
       return {
-        "Accept": "application/vnd.github+json",
-        "Authorization": `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
         "X-GitHub-Api-Version": "2022-11-28"
       };
     }
@@ -314,12 +433,12 @@
       if (conclusion === "failure" || conclusion === "cancelled" || conclusion === "timed_out") return "bad";
       return "warn";
     }
-    function updateRunsTable(runs) {
+    function updateRunsTable(targetBody, runs, emptyMessage) {
       if (!runs.length) {
-        runsBody.innerHTML = `<tr><td colspan="6">No import workflow runs yet.</td></tr>`;
+        targetBody.innerHTML = `<tr><td colspan="6">${emptyMessage}</td></tr>`;
         return;
       }
-      runsBody.innerHTML = runs.map((run) => `
+      targetBody.innerHTML = runs.map((run) => `
         <tr>
           <td><a href="${run.html_url}" target="_blank" rel="noreferrer">#${run.run_number}</a></td>
           <td>${run.status || "-"}</td>
@@ -331,19 +450,19 @@
       `).join("");
     }
 
-    async function fetchRuns() {
+    async function fetchWorkflowRuns(workflowFile, targetBody, emptyMessage) {
       const owner = val("owner");
       const repo = val("repo");
-      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-one-gp.yml/runs?per_page=12`;
+      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/runs?per_page=12`;
       const r = await fetch(url, { headers: ghHeaders() });
-      if (!r.ok) throw new Error(`Failed to fetch runs (${r.status})`);
+      if (!r.ok) throw new Error(`Failed to fetch ${workflowFile} runs (${r.status})`);
       const data = await r.json();
-      const runs = (data.workflow_runs || []);
-      updateRunsTable(runs);
+      const runs = data.workflow_runs || [];
+      updateRunsTable(targetBody, runs, emptyMessage);
       return runs;
     }
 
-    async function dispatchRun() {
+    async function dispatchPatientRun() {
       const owner = val("owner");
       const repo = val("repo");
       const branch = val("branch") || "main";
@@ -351,7 +470,7 @@
       const maleCsvUrl = val("maleCsvUrl");
       const femaleCsvUrl = val("femaleCsvUrl");
       if (!owner || !repo || !branch || !ods || !maleCsvUrl || !femaleCsvUrl) {
-        throw new Error("Owner, repo, branch, GP code, and both CSV URLs are required.");
+        throw new Error("Owner, repo, branch, GP code, and both patient CSV URLs are required.");
       }
       const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-one-gp.yml/dispatches`;
       const payload = {
@@ -369,12 +488,45 @@
       });
       if (!r.ok) {
         const body = await r.text();
-        throw new Error(`Dispatch failed (${r.status}): ${body}`);
+        throw new Error(`Patient dispatch failed (${r.status}): ${body}`);
       }
       return ods;
     }
 
-    async function checkSupabaseData() {
+    async function dispatchWorkforceRun() {
+      const owner = val("owner");
+      const repo = val("repo");
+      const branch = val("branch") || "main";
+      const practiceCode = val("wfPracticeCode").toUpperCase();
+      const snapshotDate = val("wfSnapshotDate");
+      const publicationLabel = val("wfPublicationLabel");
+      const practiceZipUrl = val("wfPracticeZipUrl");
+      if (!owner || !repo || !branch || !practiceCode || !snapshotDate || !publicationLabel || !practiceZipUrl) {
+        throw new Error("Owner, repo, branch, practice code, snapshot date, publication label, and practice ZIP URL are required.");
+      }
+      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-gp-workforce.yml/dispatches`;
+      const payload = {
+        ref: branch,
+        inputs: {
+          practice_code: practiceCode,
+          snapshot_date: snapshotDate,
+          publication_label: publicationLabel,
+          practice_zip_url: practiceZipUrl
+        }
+      };
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...ghHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`Workforce dispatch failed (${r.status}): ${body}`);
+      }
+      return practiceCode;
+    }
+
+    async function checkSupabasePatientData() {
       const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
       const apikey = val("supabaseAnonKey");
       const ods = val("ods").toUpperCase();
@@ -389,7 +541,7 @@
       const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
       if (!r.ok) {
         const body = await r.text();
-        throw new Error(`Supabase query failed (${r.status}): ${body}`);
+        throw new Error(`Supabase patient query failed (${r.status}): ${body}`);
       }
       const rows = await r.json();
       const lastImport = rows[0]?.imported_at || null;
@@ -400,22 +552,57 @@
       document.getElementById("kMaleAll").textContent = `${maleAll}`;
       document.getElementById("kFemaleAll").textContent = `${femaleAll}`;
       const msg = rows.length
-        ? `Data check OK for ${ods}. Latest imported_at: ${fmtTime(lastImport)}`
-        : `No rows returned for ${ods}.`;
+        ? `Patient data OK for ${ods}. Latest imported_at: ${fmtTime(lastImport)}`
+        : `No patient rows returned for ${ods}.`;
       setDataStatus(msg, rows.length ? "ok" : "warn");
     }
 
-    async function startWatch() {
+    async function checkSupabaseWorkforceData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const practiceCode = val("wfPracticeCode").toUpperCase();
+      const snapshotDate = val("wfSnapshotDate");
+      if (!supabaseUrl || !apikey || !practiceCode || !snapshotDate) {
+        throw new Error("Supabase URL, key, workforce practice code, and snapshot date are required.");
+      }
+      const q = new URLSearchParams({
+        select: "measure,imported_at",
+        practice_code: `eq.${practiceCode}`,
+        snapshot_date: `eq.${snapshotDate}`,
+        order: "imported_at.desc",
+        limit: "3000"
+      });
+      const url = `${supabaseUrl}/rest/v1/gp_practice_workforce_metrics?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`Supabase workforce query failed (${r.status}): ${body}`);
+      }
+      const rows = await r.json();
+      const lastImport = rows[0]?.imported_at || null;
+      const fteCount = rows.filter((x) => x.measure === "FTE").length;
+      const hcCount = rows.filter((x) => x.measure === "Headcount").length;
+      document.getElementById("wfkLastImport").textContent = lastImport ? fmtTime(lastImport) : "-";
+      document.getElementById("wfkRows").textContent = `${rows.length}`;
+      document.getElementById("wfkFte").textContent = `${fteCount}`;
+      document.getElementById("wfkHeadcount").textContent = `${hcCount}`;
+      const msg = rows.length
+        ? `Workforce data OK for ${practiceCode} (${snapshotDate}). Latest imported_at: ${fmtTime(lastImport)}`
+        : `No workforce rows returned for ${practiceCode} (${snapshotDate}).`;
+      setWfDataStatus(msg, rows.length ? "ok" : "warn");
+    }
+
+    async function startPatientWatch() {
       if (watchInterval) clearInterval(watchInterval);
       let cycles = 0;
-      setStatus("Watching latest run every 8s...", "warn");
+      setStatus("Watching latest patient run every 8s...", "warn");
       watchInterval = setInterval(async () => {
         cycles += 1;
         try {
-          const runs = await fetchRuns();
+          const runs = await fetchWorkflowRuns("import-one-gp.yml", runsBody, "No patient runs yet.");
           const latest = runs[0];
           if (!latest) return;
-          setStatus(`Latest run #${latest.run_number}: status=${latest.status}, conclusion=${latest.conclusion || "n/a"}`, badgeClass(latest.conclusion));
+          setStatus(`Patient run #${latest.run_number}: status=${latest.status}, conclusion=${latest.conclusion || "n/a"}`, badgeClass(latest.conclusion));
           if (latest.status === "completed" || cycles >= 45) {
             clearInterval(watchInterval);
             watchInterval = null;
@@ -428,37 +615,96 @@
       }, 8000);
     }
 
+    async function startWorkforceWatch() {
+      if (wfWatchInterval) clearInterval(wfWatchInterval);
+      let cycles = 0;
+      setWfStatus("Watching latest workforce run every 8s...", "warn");
+      wfWatchInterval = setInterval(async () => {
+        cycles += 1;
+        try {
+          const runs = await fetchWorkflowRuns("import-gp-workforce.yml", wfRunsBody, "No workforce runs yet.");
+          const latest = runs[0];
+          if (!latest) return;
+          setWfStatus(`Workforce run #${latest.run_number}: status=${latest.status}, conclusion=${latest.conclusion || "n/a"}`, badgeClass(latest.conclusion));
+          if (latest.status === "completed" || cycles >= 45) {
+            clearInterval(wfWatchInterval);
+            wfWatchInterval = null;
+          }
+        } catch (e) {
+          clearInterval(wfWatchInterval);
+          wfWatchInterval = null;
+          setWfStatus(String(e), "bad");
+        }
+      }, 8000);
+    }
+
     document.getElementById("runBtn").addEventListener("click", async () => {
       saveFields();
       try {
-        const ods = await dispatchRun();
-        setStatus(`Import dispatched for ${ods}. Refreshing run list...`, "ok");
-        await fetchRuns();
+        const ods = await dispatchPatientRun();
+        setStatus(`Patient import dispatched for ${ods}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-one-gp.yml", runsBody, "No patient runs yet.");
       } catch (e) {
         setStatus(String(e), "bad");
       }
     });
+
     document.getElementById("refreshRunsBtn").addEventListener("click", async () => {
       saveFields();
       try {
-        await fetchRuns();
-        setStatus("Runs refreshed.", "ok");
+        await fetchWorkflowRuns("import-one-gp.yml", runsBody, "No patient runs yet.");
+        setStatus("Patient runs refreshed.", "ok");
       } catch (e) {
         setStatus(String(e), "bad");
       }
     });
-    document.getElementById("watchBtn").addEventListener("click", startWatch);
+
+    document.getElementById("watchBtn").addEventListener("click", startPatientWatch);
+
     document.getElementById("checkDataBtn").addEventListener("click", async () => {
       saveFields();
       try {
-        await checkSupabaseData();
+        await checkSupabasePatientData();
       } catch (e) {
         setDataStatus(String(e), "bad");
       }
     });
 
+    document.getElementById("runWorkforceBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        const code = await dispatchWorkforceRun();
+        setWfStatus(`Workforce import dispatched for ${code}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-gp-workforce.yml", wfRunsBody, "No workforce runs yet.");
+      } catch (e) {
+        setWfStatus(String(e), "bad");
+      }
+    });
+
+    document.getElementById("refreshWorkforceRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchWorkflowRuns("import-gp-workforce.yml", wfRunsBody, "No workforce runs yet.");
+        setWfStatus("Workforce runs refreshed.", "ok");
+      } catch (e) {
+        setWfStatus(String(e), "bad");
+      }
+    });
+
+    document.getElementById("watchWorkforceBtn").addEventListener("click", startWorkforceWatch);
+
+    document.getElementById("checkWorkforceDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await checkSupabaseWorkforceData();
+      } catch (e) {
+        setWfDataStatus(String(e), "bad");
+      }
+    });
+
     loadFields();
-    setStatus("Ready. Add your GitHub token and refresh runs.", "warn");
+    setStatus("Ready. Add your GitHub token to control patient workflow runs.", "warn");
+    setWfStatus("Ready. Workforce import path is configured separately.", "warn");
   </script>
 </body>
 </html>

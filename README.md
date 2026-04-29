@@ -6,7 +6,9 @@ GitHub-hosted admin tool to run GP patient-count imports without downloading CSV
 
 - Hosts a browser page on GitHub Pages (`index.html`).
 - Includes JS server/import code in-repo (`scripts/import_one_gp_patient_counts.mjs`).
+- Includes GP workforce import code (`scripts/import_gp_workforce.mjs`).
 - Runs import fully in GitHub Actions (`.github/workflows/import-one-gp.yml`).
+- Runs workforce import fully in GitHub Actions (`.github/workflows/import-gp-workforce.yml`).
 
 ## One-time setup
 
@@ -23,6 +25,29 @@ GitHub-hosted admin tool to run GP patient-count imports without downloading CSV
 3. Paste a GitHub token that has `actions:write` for this repository.
 4. Click **Run Import Workflow**.
 5. Check GitHub Actions for progress and logs.
+
+## Workforce import (practice-high-level only)
+
+Current implemented workforce path imports from the **high-level practice CSV** inside:
+
+`https://files.digital.nhs.uk/85/7F0D90/GPWPracticeCSV.032026.zip`
+
+Target table:
+
+- `public.gp_practice_workforce_metrics`
+
+Create table SQL:
+
+- `sql/create_gp_practice_workforce_metrics.sql`
+
+Conflict key used by upsert:
+
+- `practice_code,snapshot_date,staff_group,detailed_staff_role,measure`
+
+Notes:
+
+- This phase imports practice-high-level workforce metrics only.
+- Individual-level workforce CSV is intentionally not imported yet (future phase).
 
 ## Notes
 

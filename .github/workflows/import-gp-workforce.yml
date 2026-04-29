@@ -1,0 +1,49 @@
+name: Import GP Workforce Metrics
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "GP practice ODS code (example: M83076)"
+        required: true
+        default: "M83076"
+      snapshot_date:
+        description: "Snapshot date (YYYY-MM-DD)"
+        required: true
+        default: "2026-03-31"
+      publication_label:
+        description: "Publication label"
+        required: true
+        default: "General Practice Workforce 31 March 2026"
+      practice_zip_url:
+        description: "Practice ZIP URL (high-level CSV is extracted from this ZIP)"
+        required: true
+        default: "https://files.digital.nhs.uk/85/7F0D90/GPWPracticeCSV.032026.zip"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run workforce importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          SNAPSHOT_DATE: ${{ github.event.inputs.snapshot_date }}
+          PUBLICATION_LABEL: ${{ github.event.inputs.publication_label }}
+          PRACTICE_ZIP_URL: ${{ github.event.inputs.practice_zip_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$PRACTICE_CODE" ] || [ -z "$SNAPSHOT_DATE" ] || [ -z "$PRACTICE_ZIP_URL" ]; then
+            echo "Missing required environment values."
+            echo "Secrets required: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+          node scripts/import_gp_workforce.mjs
