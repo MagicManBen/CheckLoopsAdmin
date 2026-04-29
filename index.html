@@ -180,7 +180,7 @@
   <main class="wrap">
     <div class="top">
       <h1>CheckLoops Import Dashboard</h1>
-      <p class="hint">Separate import controls for patient counts, GP workforce metrics, and GP Patient Survey metrics. All processing runs in GitHub Actions.</p>
+      <p class="hint">Separate import controls for patient counts, GP workforce, GP Patient Survey, CQC profile, NHS.uk profile, prescribing summary, IMD (LSOA) and ONS geography. All processing runs in GitHub Actions.</p>
     </div>
 
     <h2 class="section-title">Shared Repository + Credentials</h2>
@@ -422,6 +422,299 @@
         </tbody>
       </table>
     </section>
+
+    <h2 class="section-title">CQC Profile Import</h2>
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <p class="sub">Pulls the CQC public location + provider profile (ratings, last inspection, registered activities) into `gp_practice_cqc_profile`. Requires `CQC_SUBSCRIPTION_KEY` repo secret.</p>
+        <div class="row">
+          <div>
+            <label for="cqcPracticeCode">GP Practice M/ODS Code</label>
+            <input id="cqcPracticeCode" value="M83076" />
+          </div>
+          <div>
+            <label for="cqcLocationId">CQC Location ID (optional)</label>
+            <input id="cqcLocationId" value="" placeholder="leave blank to lookup by ODS" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="cqcProviderId">CQC Provider ID (optional)</label>
+            <input id="cqcProviderId" value="" placeholder="otherwise derived from location" />
+          </div>
+          <div>
+            <label for="cqcApiBase">CQC API Base URL</label>
+            <input id="cqcApiBase" value="https://api.service.cqc.org.uk/public/v1" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="runCqcBtn" class="primary" type="button">Run CQC Import</button>
+          <button id="refreshCqcRunsBtn" class="ghost" type="button">Refresh CQC Runs</button>
+          <button id="watchCqcBtn" class="ghost" type="button">Watch CQC Run</button>
+        </div>
+        <div id="cqcStatus" class="status">Ready.</div>
+      </div>
+
+      <div class="panel">
+        <h2>CQC Data Check</h2>
+        <p class="sub">Checks `gp_practice_cqc_profile` for the selected practice.</p>
+        <div class="actions">
+          <button id="checkCqcDataBtn" class="primary" type="button">Check CQC Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import (UTC)</div><div id="cqckLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">Overall Rating</div><div id="cqckOverall" class="v">-</div></div>
+          <div class="card"><div class="k">Last Inspection</div><div id="cqckLastInspection" class="v">-</div></div>
+          <div class="card"><div class="k">Location ID</div><div id="cqckLocation" class="v">-</div></div>
+        </div>
+        <div id="cqcDataStatus" class="status">No CQC data check yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent CQC Import Runs</h2>
+      <table>
+        <thead>
+          <tr><th>Run</th><th>Status</th><th>Conclusion</th><th>Created</th><th>Updated</th><th>Actor</th></tr>
+        </thead>
+        <tbody id="cqcRunsBody"><tr><td colspan="6">No CQC runs loaded yet.</td></tr></tbody>
+      </table>
+    </section>
+
+    <h2 class="section-title">NHS.uk GP Profile Import</h2>
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <p class="sub">Pulls the patient-facing NHS.uk GP profile (address, opening times, accepting patients, services) into `gp_practice_nhs_profile`. Requires `NHS_API_KEY` repo secret.</p>
+        <div class="row">
+          <div>
+            <label for="nhsPracticeCode">GP Practice M/ODS Code</label>
+            <input id="nhsPracticeCode" value="M83076" />
+          </div>
+          <div>
+            <label for="nhsApiBase">NHS service-search Base URL</label>
+            <input id="nhsApiBase" value="https://api.nhs.uk/service-search" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="nhsApiVersion">NHS API Version</label>
+            <input id="nhsApiVersion" value="2" />
+          </div>
+          <div></div>
+        </div>
+        <div class="actions">
+          <button id="runNhsBtn" class="primary" type="button">Run NHS Import</button>
+          <button id="refreshNhsRunsBtn" class="ghost" type="button">Refresh NHS Runs</button>
+          <button id="watchNhsBtn" class="ghost" type="button">Watch NHS Run</button>
+        </div>
+        <div id="nhsStatus" class="status">Ready.</div>
+      </div>
+
+      <div class="panel">
+        <h2>NHS Data Check</h2>
+        <p class="sub">Checks `gp_practice_nhs_profile` for the selected practice.</p>
+        <div class="actions">
+          <button id="checkNhsDataBtn" class="primary" type="button">Check NHS Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import (UTC)</div><div id="nhskLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">Organisation</div><div id="nhskOrg" class="v">-</div></div>
+          <div class="card"><div class="k">Postcode</div><div id="nhskPostcode" class="v">-</div></div>
+          <div class="card"><div class="k">Accepting New</div><div id="nhskAccepting" class="v">-</div></div>
+        </div>
+        <div id="nhsDataStatus" class="status">No NHS data check yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent NHS Import Runs</h2>
+      <table>
+        <thead>
+          <tr><th>Run</th><th>Status</th><th>Conclusion</th><th>Created</th><th>Updated</th><th>Actor</th></tr>
+        </thead>
+        <tbody id="nhsRunsBody"><tr><td colspan="6">No NHS runs loaded yet.</td></tr></tbody>
+      </table>
+    </section>
+
+    <h2 class="section-title">Practice Prescribing Summary Import</h2>
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <p class="sub">Imports practice-level prescribing summary (items, NIC, ADQ etc.) into `gp_practice_prescribing_summary` for one practice and one publication month. Provide the direct CSV URL from the NHSBSA / digital.nhs.uk publication.</p>
+        <div class="row">
+          <div>
+            <label for="rxPracticeCode">GP Practice M/ODS Code</label>
+            <input id="rxPracticeCode" value="M83076" />
+          </div>
+          <div>
+            <label for="rxYearMonth">Year-Month (YYYY-MM-01)</label>
+            <input id="rxYearMonth" value="2026-03-01" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="rxPublicationLabel">Publication Label</label>
+            <input id="rxPublicationLabel" value="Practice-level prescribing summary, March 2026" />
+          </div>
+          <div>
+            <label for="rxCsvUrl">Prescribing Summary CSV URL</label>
+            <input id="rxCsvUrl" value="" placeholder="https://files.digital.nhs.uk/.../EPD_PRACTICE_SUMMARY_YYYYMM.csv" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="runRxBtn" class="primary" type="button">Run Prescribing Import</button>
+          <button id="refreshRxRunsBtn" class="ghost" type="button">Refresh Prescribing Runs</button>
+          <button id="watchRxBtn" class="ghost" type="button">Watch Prescribing Run</button>
+        </div>
+        <div id="rxStatus" class="status">Ready.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Prescribing Data Check</h2>
+        <p class="sub">Checks `gp_practice_prescribing_summary` for the selected practice and month.</p>
+        <div class="actions">
+          <button id="checkRxDataBtn" class="primary" type="button">Check Prescribing Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import (UTC)</div><div id="rxkLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">Metric Rows Found</div><div id="rxkRows" class="v">-</div></div>
+          <div class="card"><div class="k">Numeric Metrics</div><div id="rxkNumeric" class="v">-</div></div>
+          <div class="card"><div class="k">Distinct Chapters</div><div id="rxkChapters" class="v">-</div></div>
+        </div>
+        <div id="rxDataStatus" class="status">No prescribing data check yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent Prescribing Import Runs</h2>
+      <table>
+        <thead>
+          <tr><th>Run</th><th>Status</th><th>Conclusion</th><th>Created</th><th>Updated</th><th>Actor</th></tr>
+        </thead>
+        <tbody id="rxRunsBody"><tr><td colspan="6">No prescribing runs loaded yet.</td></tr></tbody>
+      </table>
+    </section>
+
+    <h2 class="section-title">English Indices of Deprivation (LSOA) Import</h2>
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <p class="sub">Bulk-imports an LSOA-level IMD CSV (all LSOAs at once) into `imd_lsoa_metrics`, tall format. Reuse for any IMD release year by changing the URL.</p>
+        <div class="row">
+          <div>
+            <label for="imdYear">IMD Release Year</label>
+            <input id="imdYear" value="2025" />
+          </div>
+          <div>
+            <label for="imdPublicationLabel">Publication Label</label>
+            <input id="imdPublicationLabel" value="English Indices of Deprivation 2025" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="imdCsvUrl">IMD LSOA CSV URL</label>
+            <input id="imdCsvUrl" value="" placeholder="paste direct gov.uk CSV URL" />
+          </div>
+          <div></div>
+        </div>
+        <div class="actions">
+          <button id="runImdBtn" class="primary" type="button">Run IMD Import</button>
+          <button id="refreshImdRunsBtn" class="ghost" type="button">Refresh IMD Runs</button>
+          <button id="watchImdBtn" class="ghost" type="button">Watch IMD Run</button>
+        </div>
+        <div id="imdStatus" class="status">Ready.</div>
+      </div>
+
+      <div class="panel">
+        <h2>IMD Data Check</h2>
+        <p class="sub">Checks `imd_lsoa_metrics` for the selected release year.</p>
+        <div class="row">
+          <div>
+            <label for="imdLsoaProbe">Sample LSOA Code (optional)</label>
+            <input id="imdLsoaProbe" value="" placeholder="e.g. E01000001" />
+          </div>
+          <div></div>
+        </div>
+        <div class="actions">
+          <button id="checkImdDataBtn" class="primary" type="button">Check IMD Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import (UTC)</div><div id="imdkLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">Metric Rows (sample)</div><div id="imdkRows" class="v">-</div></div>
+          <div class="card"><div class="k">Distinct LSOAs</div><div id="imdkLsoas" class="v">-</div></div>
+          <div class="card"><div class="k">Year</div><div id="imdkYear" class="v">-</div></div>
+        </div>
+        <div id="imdDataStatus" class="status">No IMD data check yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent IMD Import Runs</h2>
+      <table>
+        <thead>
+          <tr><th>Run</th><th>Status</th><th>Conclusion</th><th>Created</th><th>Updated</th><th>Actor</th></tr>
+        </thead>
+        <tbody id="imdRunsBody"><tr><td colspan="6">No IMD runs loaded yet.</td></tr></tbody>
+      </table>
+    </section>
+
+    <h2 class="section-title">ONS Geography (Postcode Lookup) Import</h2>
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <p class="sub">Resolves a practice postcode to LSOA / MSOA / ward / LA / region using postcodes.io (ONS reference data). Upserts into `gp_practice_geography`.</p>
+        <div class="row">
+          <div>
+            <label for="geoPracticeCode">GP Practice M/ODS Code</label>
+            <input id="geoPracticeCode" value="M83076" />
+          </div>
+          <div>
+            <label for="geoPostcode">Practice Postcode</label>
+            <input id="geoPostcode" value="" placeholder="e.g. PE1 5BS" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="geoApiBase">postcodes.io Base URL</label>
+            <input id="geoApiBase" value="https://api.postcodes.io" />
+          </div>
+          <div></div>
+        </div>
+        <div class="actions">
+          <button id="runGeoBtn" class="primary" type="button">Run Geography Import</button>
+          <button id="refreshGeoRunsBtn" class="ghost" type="button">Refresh Geography Runs</button>
+          <button id="watchGeoBtn" class="ghost" type="button">Watch Geography Run</button>
+        </div>
+        <div id="geoStatus" class="status">Ready.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Geography Data Check</h2>
+        <p class="sub">Checks `gp_practice_geography` for the selected practice.</p>
+        <div class="actions">
+          <button id="checkGeoDataBtn" class="primary" type="button">Check Geography Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import (UTC)</div><div id="geokLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">LSOA</div><div id="geokLsoa" class="v">-</div></div>
+          <div class="card"><div class="k">Local Authority</div><div id="geokLa" class="v">-</div></div>
+          <div class="card"><div class="k">Region</div><div id="geokRegion" class="v">-</div></div>
+        </div>
+        <div id="geoDataStatus" class="status">No geography data check yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent Geography Import Runs</h2>
+      <table>
+        <thead>
+          <tr><th>Run</th><th>Status</th><th>Conclusion</th><th>Created</th><th>Updated</th><th>Actor</th></tr>
+        </thead>
+        <tbody id="geoRunsBody"><tr><td colspan="6">No geography runs loaded yet.</td></tr></tbody>
+      </table>
+    </section>
   </main>
 
   <script>
@@ -442,7 +735,25 @@
       "svyPracticeCode",
       "svyYear",
       "svyPublicationLabel",
-      "svyCsvUrl"
+      "svyCsvUrl",
+      "cqcPracticeCode",
+      "cqcLocationId",
+      "cqcProviderId",
+      "cqcApiBase",
+      "nhsPracticeCode",
+      "nhsApiBase",
+      "nhsApiVersion",
+      "rxPracticeCode",
+      "rxYearMonth",
+      "rxPublicationLabel",
+      "rxCsvUrl",
+      "imdYear",
+      "imdPublicationLabel",
+      "imdCsvUrl",
+      "imdLsoaProbe",
+      "geoPracticeCode",
+      "geoPostcode",
+      "geoApiBase"
     ];
     const statusEl = document.getElementById("status");
     const dataStatusEl = document.getElementById("dataStatus");
@@ -453,9 +764,29 @@
     const runsBody = document.getElementById("runsBody");
     const wfRunsBody = document.getElementById("wfRunsBody");
     const svyRunsBody = document.getElementById("svyRunsBody");
+    const cqcRunsBody = document.getElementById("cqcRunsBody");
+    const nhsRunsBody = document.getElementById("nhsRunsBody");
+    const rxRunsBody = document.getElementById("rxRunsBody");
+    const imdRunsBody = document.getElementById("imdRunsBody");
+    const geoRunsBody = document.getElementById("geoRunsBody");
+    const cqcStatusEl = document.getElementById("cqcStatus");
+    const cqcDataStatusEl = document.getElementById("cqcDataStatus");
+    const nhsStatusEl = document.getElementById("nhsStatus");
+    const nhsDataStatusEl = document.getElementById("nhsDataStatus");
+    const rxStatusEl = document.getElementById("rxStatus");
+    const rxDataStatusEl = document.getElementById("rxDataStatus");
+    const imdStatusEl = document.getElementById("imdStatus");
+    const imdDataStatusEl = document.getElementById("imdDataStatus");
+    const geoStatusEl = document.getElementById("geoStatus");
+    const geoDataStatusEl = document.getElementById("geoDataStatus");
     let watchInterval = null;
     let wfWatchInterval = null;
     let svyWatchInterval = null;
+    let cqcWatchInterval = null;
+    let nhsWatchInterval = null;
+    let rxWatchInterval = null;
+    let imdWatchInterval = null;
+    let geoWatchInterval = null;
 
     function setStatus(text, tone = "ok") {
       statusEl.textContent = text;
@@ -480,6 +811,46 @@
     function setSvyDataStatus(text, tone = "ok") {
       svyDataStatusEl.textContent = text;
       svyDataStatusEl.className = `status ${tone}`;
+    }
+    function setCqcStatus(text, tone = "ok") {
+      cqcStatusEl.textContent = text;
+      cqcStatusEl.className = `status ${tone}`;
+    }
+    function setCqcDataStatus(text, tone = "ok") {
+      cqcDataStatusEl.textContent = text;
+      cqcDataStatusEl.className = `status ${tone}`;
+    }
+    function setNhsStatus(text, tone = "ok") {
+      nhsStatusEl.textContent = text;
+      nhsStatusEl.className = `status ${tone}`;
+    }
+    function setNhsDataStatus(text, tone = "ok") {
+      nhsDataStatusEl.textContent = text;
+      nhsDataStatusEl.className = `status ${tone}`;
+    }
+    function setRxStatus(text, tone = "ok") {
+      rxStatusEl.textContent = text;
+      rxStatusEl.className = `status ${tone}`;
+    }
+    function setRxDataStatus(text, tone = "ok") {
+      rxDataStatusEl.textContent = text;
+      rxDataStatusEl.className = `status ${tone}`;
+    }
+    function setImdStatus(text, tone = "ok") {
+      imdStatusEl.textContent = text;
+      imdStatusEl.className = `status ${tone}`;
+    }
+    function setImdDataStatus(text, tone = "ok") {
+      imdDataStatusEl.textContent = text;
+      imdDataStatusEl.className = `status ${tone}`;
+    }
+    function setGeoStatus(text, tone = "ok") {
+      geoStatusEl.textContent = text;
+      geoStatusEl.className = `status ${tone}`;
+    }
+    function setGeoDataStatus(text, tone = "ok") {
+      geoDataStatusEl.textContent = text;
+      geoDataStatusEl.className = `status ${tone}`;
     }
     function val(id) {
       return document.getElementById(id).value.trim();
@@ -909,10 +1280,356 @@
       }
     });
 
+    async function dispatchGeneric(workflowFile, inputs) {
+      const owner = val("owner");
+      const repo = val("repo");
+      const branch = val("branch") || "main";
+      if (!owner || !repo || !branch) {
+        throw new Error("Owner, repo and branch are required.");
+      }
+      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...ghHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ ref: branch, inputs })
+      });
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`Dispatch ${workflowFile} failed (${r.status}): ${body}`);
+      }
+    }
+
+    function startWatch(workflowFile, body, emptyMsg, statusSetter, label, intervalRef) {
+      if (intervalRef.value) clearInterval(intervalRef.value);
+      let cycles = 0;
+      statusSetter(`Watching latest ${label} run every 8s...`, "warn");
+      intervalRef.value = setInterval(async () => {
+        cycles += 1;
+        try {
+          const runs = await fetchWorkflowRuns(workflowFile, body, emptyMsg);
+          const latest = runs[0];
+          if (!latest) return;
+          statusSetter(`${label} run #${latest.run_number}: status=${latest.status}, conclusion=${latest.conclusion || "n/a"}`, badgeClass(latest.conclusion));
+          if (latest.status === "completed" || cycles >= 45) {
+            clearInterval(intervalRef.value);
+            intervalRef.value = null;
+          }
+        } catch (e) {
+          clearInterval(intervalRef.value);
+          intervalRef.value = null;
+          statusSetter(String(e), "bad");
+        }
+      }, 8000);
+    }
+
+    // ---- CQC ----
+    async function dispatchCqc() {
+      const practiceCode = val("cqcPracticeCode").toUpperCase();
+      const cqcLocationId = val("cqcLocationId");
+      const cqcProviderId = val("cqcProviderId");
+      const cqcApiBase = val("cqcApiBase");
+      if (!practiceCode && !cqcLocationId) throw new Error("Practice code or CQC location ID required.");
+      if (!cqcApiBase) throw new Error("CQC API base URL required.");
+      await dispatchGeneric("import-cqc-profile.yml", {
+        practice_code: practiceCode,
+        cqc_location_id: cqcLocationId,
+        cqc_provider_id: cqcProviderId,
+        cqc_api_base: cqcApiBase
+      });
+      return practiceCode || cqcLocationId;
+    }
+    async function checkCqcData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const practiceCode = val("cqcPracticeCode").toUpperCase();
+      if (!supabaseUrl || !apikey || !practiceCode) throw new Error("Supabase URL, key and CQC practice code are required.");
+      const q = new URLSearchParams({
+        select: "location_id,overall_rating,last_inspection_date,imported_at",
+        practice_code: `eq.${practiceCode}`,
+        limit: "1"
+      });
+      const url = `${supabaseUrl}/rest/v1/gp_practice_cqc_profile?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) throw new Error(`Supabase CQC query failed (${r.status}): ${await r.text()}`);
+      const rows = await r.json();
+      const row = rows[0];
+      document.getElementById("cqckLastImport").textContent = row?.imported_at ? fmtTime(row.imported_at) : "-";
+      document.getElementById("cqckOverall").textContent = row?.overall_rating || "-";
+      document.getElementById("cqckLastInspection").textContent = row?.last_inspection_date || "-";
+      document.getElementById("cqckLocation").textContent = row?.location_id || "-";
+      setCqcDataStatus(row ? `CQC profile present for ${practiceCode}.` : `No CQC profile row for ${practiceCode}.`, row ? "ok" : "warn");
+    }
+    const cqcWatchRef = { value: null };
+    document.getElementById("runCqcBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        const code = await dispatchCqc();
+        setCqcStatus(`CQC import dispatched for ${code}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-cqc-profile.yml", cqcRunsBody, "No CQC runs yet.");
+      } catch (e) { setCqcStatus(String(e), "bad"); }
+    });
+    document.getElementById("refreshCqcRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchWorkflowRuns("import-cqc-profile.yml", cqcRunsBody, "No CQC runs yet.");
+        setCqcStatus("CQC runs refreshed.", "ok");
+      } catch (e) { setCqcStatus(String(e), "bad"); }
+    });
+    document.getElementById("watchCqcBtn").addEventListener("click", () => startWatch("import-cqc-profile.yml", cqcRunsBody, "No CQC runs yet.", setCqcStatus, "CQC", cqcWatchRef));
+    document.getElementById("checkCqcDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try { await checkCqcData(); } catch (e) { setCqcDataStatus(String(e), "bad"); }
+    });
+
+    // ---- NHS ----
+    async function dispatchNhs() {
+      const practiceCode = val("nhsPracticeCode").toUpperCase();
+      const nhsApiBase = val("nhsApiBase");
+      const nhsApiVersion = val("nhsApiVersion");
+      if (!practiceCode || !nhsApiBase || !nhsApiVersion) throw new Error("Practice code, NHS API base and version required.");
+      await dispatchGeneric("import-nhs-profile.yml", {
+        practice_code: practiceCode,
+        nhs_api_base: nhsApiBase,
+        nhs_api_version: nhsApiVersion
+      });
+      return practiceCode;
+    }
+    async function checkNhsData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const practiceCode = val("nhsPracticeCode").toUpperCase();
+      if (!supabaseUrl || !apikey || !practiceCode) throw new Error("Supabase URL, key and NHS practice code are required.");
+      const q = new URLSearchParams({
+        select: "organisation_name,postcode,accepting_new_patients,imported_at",
+        practice_code: `eq.${practiceCode}`,
+        limit: "1"
+      });
+      const url = `${supabaseUrl}/rest/v1/gp_practice_nhs_profile?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) throw new Error(`Supabase NHS query failed (${r.status}): ${await r.text()}`);
+      const rows = await r.json();
+      const row = rows[0];
+      document.getElementById("nhskLastImport").textContent = row?.imported_at ? fmtTime(row.imported_at) : "-";
+      document.getElementById("nhskOrg").textContent = row?.organisation_name || "-";
+      document.getElementById("nhskPostcode").textContent = row?.postcode || "-";
+      document.getElementById("nhskAccepting").textContent = row?.accepting_new_patients || "-";
+      setNhsDataStatus(row ? `NHS profile present for ${practiceCode}.` : `No NHS profile row for ${practiceCode}.`, row ? "ok" : "warn");
+    }
+    const nhsWatchRef = { value: null };
+    document.getElementById("runNhsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        const code = await dispatchNhs();
+        setNhsStatus(`NHS import dispatched for ${code}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-nhs-profile.yml", nhsRunsBody, "No NHS runs yet.");
+      } catch (e) { setNhsStatus(String(e), "bad"); }
+    });
+    document.getElementById("refreshNhsRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchWorkflowRuns("import-nhs-profile.yml", nhsRunsBody, "No NHS runs yet.");
+        setNhsStatus("NHS runs refreshed.", "ok");
+      } catch (e) { setNhsStatus(String(e), "bad"); }
+    });
+    document.getElementById("watchNhsBtn").addEventListener("click", () => startWatch("import-nhs-profile.yml", nhsRunsBody, "No NHS runs yet.", setNhsStatus, "NHS", nhsWatchRef));
+    document.getElementById("checkNhsDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try { await checkNhsData(); } catch (e) { setNhsDataStatus(String(e), "bad"); }
+    });
+
+    // ---- Prescribing ----
+    async function dispatchRx() {
+      const practiceCode = val("rxPracticeCode").toUpperCase();
+      const yearMonth = val("rxYearMonth");
+      const publicationLabel = val("rxPublicationLabel");
+      const csvUrl = val("rxCsvUrl");
+      if (!practiceCode || !yearMonth || !publicationLabel || !csvUrl) {
+        throw new Error("Practice code, year-month, publication label and prescribing CSV URL are required.");
+      }
+      await dispatchGeneric("import-prescribing-summary.yml", {
+        practice_code: practiceCode,
+        year_month: yearMonth,
+        publication_label: publicationLabel,
+        prescribing_csv_url: csvUrl
+      });
+      return practiceCode;
+    }
+    async function checkRxData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const practiceCode = val("rxPracticeCode").toUpperCase();
+      const yearMonth = val("rxYearMonth");
+      if (!supabaseUrl || !apikey || !practiceCode || !yearMonth) throw new Error("Supabase URL, key, practice and year-month required.");
+      const q = new URLSearchParams({
+        select: "metric_value,bnf_chapter,imported_at",
+        practice_code: `eq.${practiceCode}`,
+        year_month: `eq.${yearMonth}`,
+        order: "imported_at.desc",
+        limit: "5000"
+      });
+      const url = `${supabaseUrl}/rest/v1/gp_practice_prescribing_summary?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) throw new Error(`Supabase prescribing query failed (${r.status}): ${await r.text()}`);
+      const rows = await r.json();
+      const numeric = rows.filter((x) => x.metric_value !== null).length;
+      const chapters = new Set(rows.map((x) => x.bnf_chapter)).size;
+      const lastImport = rows[0]?.imported_at || null;
+      document.getElementById("rxkLastImport").textContent = lastImport ? fmtTime(lastImport) : "-";
+      document.getElementById("rxkRows").textContent = `${rows.length}`;
+      document.getElementById("rxkNumeric").textContent = `${numeric}`;
+      document.getElementById("rxkChapters").textContent = `${chapters}`;
+      setRxDataStatus(rows.length ? `Prescribing data OK for ${practiceCode} (${yearMonth}).` : `No prescribing rows for ${practiceCode} (${yearMonth}).`, rows.length ? "ok" : "warn");
+    }
+    const rxWatchRef = { value: null };
+    document.getElementById("runRxBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        const code = await dispatchRx();
+        setRxStatus(`Prescribing import dispatched for ${code}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-prescribing-summary.yml", rxRunsBody, "No prescribing runs yet.");
+      } catch (e) { setRxStatus(String(e), "bad"); }
+    });
+    document.getElementById("refreshRxRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchWorkflowRuns("import-prescribing-summary.yml", rxRunsBody, "No prescribing runs yet.");
+        setRxStatus("Prescribing runs refreshed.", "ok");
+      } catch (e) { setRxStatus(String(e), "bad"); }
+    });
+    document.getElementById("watchRxBtn").addEventListener("click", () => startWatch("import-prescribing-summary.yml", rxRunsBody, "No prescribing runs yet.", setRxStatus, "Prescribing", rxWatchRef));
+    document.getElementById("checkRxDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try { await checkRxData(); } catch (e) { setRxDataStatus(String(e), "bad"); }
+    });
+
+    // ---- IMD ----
+    async function dispatchImd() {
+      const imdYear = val("imdYear");
+      const publicationLabel = val("imdPublicationLabel");
+      const csvUrl = val("imdCsvUrl");
+      if (!imdYear || !publicationLabel || !csvUrl) {
+        throw new Error("IMD year, publication label and CSV URL required.");
+      }
+      await dispatchGeneric("import-imd-lsoa.yml", {
+        imd_year: imdYear,
+        publication_label: publicationLabel,
+        imd_csv_url: csvUrl
+      });
+      return imdYear;
+    }
+    async function checkImdData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const imdYear = val("imdYear");
+      const lsoaProbe = val("imdLsoaProbe");
+      if (!supabaseUrl || !apikey || !imdYear) throw new Error("Supabase URL, key and IMD year required.");
+      const params = {
+        select: "lsoa_code,imported_at",
+        imd_year: `eq.${imdYear}`,
+        order: "imported_at.desc",
+        limit: "5000"
+      };
+      if (lsoaProbe) params.lsoa_code = `eq.${lsoaProbe}`;
+      const q = new URLSearchParams(params);
+      const url = `${supabaseUrl}/rest/v1/imd_lsoa_metrics?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) throw new Error(`Supabase IMD query failed (${r.status}): ${await r.text()}`);
+      const rows = await r.json();
+      const distinctLsoa = new Set(rows.map((x) => x.lsoa_code)).size;
+      const lastImport = rows[0]?.imported_at || null;
+      document.getElementById("imdkLastImport").textContent = lastImport ? fmtTime(lastImport) : "-";
+      document.getElementById("imdkRows").textContent = `${rows.length}`;
+      document.getElementById("imdkLsoas").textContent = `${distinctLsoa}`;
+      document.getElementById("imdkYear").textContent = imdYear;
+      setImdDataStatus(rows.length ? `IMD data present for year ${imdYear}${lsoaProbe ? ` (LSOA ${lsoaProbe})` : ""}.` : `No IMD rows for year ${imdYear}${lsoaProbe ? ` and LSOA ${lsoaProbe}` : ""}.`, rows.length ? "ok" : "warn");
+    }
+    const imdWatchRef = { value: null };
+    document.getElementById("runImdBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        const yr = await dispatchImd();
+        setImdStatus(`IMD import dispatched for year ${yr}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-imd-lsoa.yml", imdRunsBody, "No IMD runs yet.");
+      } catch (e) { setImdStatus(String(e), "bad"); }
+    });
+    document.getElementById("refreshImdRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchWorkflowRuns("import-imd-lsoa.yml", imdRunsBody, "No IMD runs yet.");
+        setImdStatus("IMD runs refreshed.", "ok");
+      } catch (e) { setImdStatus(String(e), "bad"); }
+    });
+    document.getElementById("watchImdBtn").addEventListener("click", () => startWatch("import-imd-lsoa.yml", imdRunsBody, "No IMD runs yet.", setImdStatus, "IMD", imdWatchRef));
+    document.getElementById("checkImdDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try { await checkImdData(); } catch (e) { setImdDataStatus(String(e), "bad"); }
+    });
+
+    // ---- Geography ----
+    async function dispatchGeo() {
+      const practiceCode = val("geoPracticeCode").toUpperCase();
+      const postcode = val("geoPostcode");
+      const apiBase = val("geoApiBase");
+      if (!practiceCode || !postcode || !apiBase) throw new Error("Practice code, postcode and postcodes.io base URL required.");
+      await dispatchGeneric("import-ons-geography.yml", {
+        practice_code: practiceCode,
+        postcode,
+        postcodes_api_base: apiBase
+      });
+      return practiceCode;
+    }
+    async function checkGeoData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const practiceCode = val("geoPracticeCode").toUpperCase();
+      if (!supabaseUrl || !apikey || !practiceCode) throw new Error("Supabase URL, key and practice code required.");
+      const q = new URLSearchParams({
+        select: "lsoa,lsoa_code,local_authority_district,region,imported_at",
+        practice_code: `eq.${practiceCode}`,
+        limit: "1"
+      });
+      const url = `${supabaseUrl}/rest/v1/gp_practice_geography?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) throw new Error(`Supabase geography query failed (${r.status}): ${await r.text()}`);
+      const rows = await r.json();
+      const row = rows[0];
+      document.getElementById("geokLastImport").textContent = row?.imported_at ? fmtTime(row.imported_at) : "-";
+      document.getElementById("geokLsoa").textContent = row?.lsoa || row?.lsoa_code || "-";
+      document.getElementById("geokLa").textContent = row?.local_authority_district || "-";
+      document.getElementById("geokRegion").textContent = row?.region || "-";
+      setGeoDataStatus(row ? `Geography present for ${practiceCode}.` : `No geography row for ${practiceCode}.`, row ? "ok" : "warn");
+    }
+    const geoWatchRef = { value: null };
+    document.getElementById("runGeoBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        const code = await dispatchGeo();
+        setGeoStatus(`Geography import dispatched for ${code}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-ons-geography.yml", geoRunsBody, "No geography runs yet.");
+      } catch (e) { setGeoStatus(String(e), "bad"); }
+    });
+    document.getElementById("refreshGeoRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchWorkflowRuns("import-ons-geography.yml", geoRunsBody, "No geography runs yet.");
+        setGeoStatus("Geography runs refreshed.", "ok");
+      } catch (e) { setGeoStatus(String(e), "bad"); }
+    });
+    document.getElementById("watchGeoBtn").addEventListener("click", () => startWatch("import-ons-geography.yml", geoRunsBody, "No geography runs yet.", setGeoStatus, "Geography", geoWatchRef));
+    document.getElementById("checkGeoDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try { await checkGeoData(); } catch (e) { setGeoDataStatus(String(e), "bad"); }
+    });
+
     loadFields();
     setStatus("Ready. Add your GitHub token to control patient workflow runs.", "warn");
     setWfStatus("Ready. Workforce import path is configured separately.", "warn");
     setSvyStatus("Ready. GPPS import path is configured separately.", "warn");
+    setCqcStatus("Ready. Requires CQC_SUBSCRIPTION_KEY repo secret.", "warn");
+    setNhsStatus("Ready. Requires NHS_API_KEY repo secret.", "warn");
+    setRxStatus("Ready. Paste a direct prescribing CSV URL when running.", "warn");
+    setImdStatus("Ready. Paste a direct IMD LSOA CSV URL when running.", "warn");
+    setGeoStatus("Ready. Postcode lookup uses ONS data via postcodes.io.", "warn");
   </script>
 </body>
 </html>

@@ -1,0 +1,44 @@
+name: Import ONS Geography (Practice Postcode Lookup)
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "GP practice ODS code (example: M83076)"
+        required: true
+        default: "M83076"
+      postcode:
+        description: "Practice postcode (example: PE1 5BS)"
+        required: true
+        default: ""
+      postcodes_api_base:
+        description: "postcodes.io base URL (uses ONS reference data)"
+        required: true
+        default: "https://api.postcodes.io"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run ONS geography importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          POSTCODE: ${{ github.event.inputs.postcode }}
+          POSTCODES_API_BASE: ${{ github.event.inputs.postcodes_api_base }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$PRACTICE_CODE" ] || [ -z "$POSTCODE" ]; then
+            echo "Missing required environment values."
+            echo "Secrets required: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+          node scripts/import_ons_geography.mjs

@@ -1,0 +1,49 @@
+name: Import GP Practice Prescribing Summary
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "GP practice ODS code (example: M83076)"
+        required: true
+        default: "M83076"
+      year_month:
+        description: "First day of publication month (YYYY-MM-01)"
+        required: true
+        default: "2026-03-01"
+      publication_label:
+        description: "Publication label"
+        required: true
+        default: "Practice-level prescribing summary, March 2026"
+      prescribing_csv_url:
+        description: "Practice-level prescribing summary CSV URL"
+        required: true
+        default: ""
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run prescribing summary importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          YEAR_MONTH: ${{ github.event.inputs.year_month }}
+          PUBLICATION_LABEL: ${{ github.event.inputs.publication_label }}
+          PRESCRIBING_CSV_URL: ${{ github.event.inputs.prescribing_csv_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$PRACTICE_CODE" ] || [ -z "$YEAR_MONTH" ] || [ -z "$PRESCRIBING_CSV_URL" ]; then
+            echo "Missing required environment values."
+            echo "Secrets required: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+          node scripts/import_prescribing_summary.mjs

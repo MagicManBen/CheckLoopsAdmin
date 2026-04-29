@@ -11,11 +11,16 @@ It explains what was requested, what was built, how it works, where each part li
 
 The project objective is to run public NHS/GP data imports remotely in GitHub (GitHub Actions), then upsert into Supabase, without local CSV processing on a MacBook.
 
-The system now supports three separate import paths:
+The system now supports eight separate import paths:
 
 1. GP patient age-count import
 2. GP workforce practice metrics import (high-level practice CSV only)
 3. GP Patient Survey (GPPS) practice metrics import
+4. CQC public profile import (per practice — ratings, last inspection, registered activities)
+5. NHS.uk GP surgery public profile import (per practice — address, opening times, accepting patients)
+6. Practice-level prescribing summary import (per practice, per month)
+7. English Indices of Deprivation (LSOA) bulk import (any release year)
+8. ONS geography (postcode → LSOA/MSOA/ward/LA/region) import (per practice)
 
 All imports are triggered from a GitHub Pages dashboard and executed in GitHub Actions using Node scripts.
 
@@ -186,13 +191,162 @@ The script normalizes wide columns into a tall metric table:
 
 - `practice_code,survey_year,metric_key`
 
+## 5.4 CQC public profile import (new path)
+
+### Workflow
+- `.github/workflows/import-cqc-profile.yml`
+
+### Script
+- `scripts/import_cqc_profile.mjs`
+
+### Table SQL
+- `sql/create_gp_practice_cqc_profile.sql`
+
+### Target table
+- `gp_practice_cqc_profile` (PK = `practice_code`)
+
+### Source
+- CQC public API (default base `https://api.service.cqc.org.uk/public/v1`)
+- Endpoints used:
+  - `GET /locations?odsCode={ODS}` — to resolve a CQC location ID from a practice ODS code (skipped if `cqc_location_id` is supplied)
+  - `GET /locations/{locationId}` — full location detail
+  - `GET /providers/{providerId}` — derived from the location's providerId
+
+### Stored fields
+- Identifiers: `practice_code`, `location_id`, `provider_id`
+- Names: `location_name`, `provider_name`
+- Registration: `registration_status`, `registration_date`, `deregistration_date`, `type`
+- Geography: `postal_code`, `region`, `local_authority`, `constituency`
+- Inspection: `last_inspection_date`, `last_report_publication_date`
+- Ratings (parsed from `currentRatings.overall.keyQuestionRatings`): `overall_rating`, `safe_rating`, `effective_rating`, `caring_rating`, `responsive_rating`, `well_led_rating`
+- JSONB extras: `registered_activities`, `gac_service_types`, `inspection_categories`, `specialisms`, `inspection_areas`, `current_ratings`, `historic_ratings`, `reports`, `raw_payload`
+- Provenance: `source_location_url`, `source_provider_url`, `imported_at`
+
+### Required secret
+- `CQC_SUBSCRIPTION_KEY` (Ocp-Apim-Subscription-Key for CQC's APIM tenant)
+
+## 5.5 NHS.uk GP profile import (new path)
+
+### Workflow
+- `.github/workflows/import-nhs-profile.yml`
+
+### Script
+- `scripts/import_nhs_profile.mjs`
+
+### Table SQL
+- `sql/create_gp_practice_nhs_profile.sql`
+
+### Target table
+- `gp_practice_nhs_profile` (PK = `practice_code`)
+
+### Source
+- NHS service-search API at `https://api.nhs.uk/service-search/search?api-version=2&search={ODS}&searchFields=OrganisationCode,ODSCode`
+- Picks the row whose `OrganisationCode`/`ODSCode` matches the requested ODS exactly (falls back to first result)
+
+### Stored fields
+- Identification + address: `organisation_name`, `organisation_type`, `parent_organisation`, `address_line_1..3`, `town`, `county`, `postcode`, `country`
+- Contact: `phone`, `fax`, `email`, `website`, `latitude`, `longitude`
+- Patient access: `accepting_new_patients`, `online_booking_url`, `prescription_ordering_url`, `appointment_booking_url`
+- JSONB extras: `opening_times`, `reception_times`, `consulting_times`, `facilities`, `accessibility`, `services`, `staff`, `metrics`, `raw_payload`
+- Provenance: `source_url`, `source_api`, `imported_at`
+
+### Required secret
+- `NHS_API_KEY` (Ocp-Apim-Subscription-Key for api.nhs.uk)
+
+## 5.6 Practice-level prescribing summary import (new path)
+
+### Workflow
+- `.github/workflows/import-prescribing-summary.yml`
+
+### Script
+- `scripts/import_prescribing_summary.mjs`
+
+### Table SQL
+- `sql/create_gp_practice_prescribing_summary.sql`
+
+### Target table
+- `gp_practice_prescribing_summary`
+- PK: `(practice_code, year_month, bnf_chapter, metric_key)`
+
+### Source
+- Direct CSV URL from the NHSBSA / digital.nhs.uk practice-level prescribing summary publication. URL is supplied as a workflow input (no fixed default — it changes monthly).
+
+### Behaviour
+- Streams CSV line-by-line, filters to one `practice_code`, normalises wide columns to a tall `metric_key` / `metric_value` shape (mirrors the GPPS approach).
+- Auto-detects the practice code header from a candidate list (`PRACTICE_CODE`, `PRAC_CODE`, `ODS_CODE`, etc.) so it tolerates the slight schema drift between NHSBSA monthly files.
+- Auto-detects optional BNF chapter columns; otherwise stores `bnf_chapter = 'ALL'`.
+- Numeric vs text handled identically to GPPS.
+
+### Required input
+- `practice_code`, `year_month` (must be `YYYY-MM-01`), `publication_label`, `prescribing_csv_url`
+
+## 5.7 English Indices of Deprivation (LSOA) import (new path)
+
+### Workflow
+- `.github/workflows/import-imd-lsoa.yml`
+
+### Script
+- `scripts/import_imd_lsoa.mjs`
+
+### Table SQL
+- `sql/create_imd_lsoa_metrics.sql`
+
+### Target table
+- `imd_lsoa_metrics`
+- PK: `(lsoa_code, imd_year, metric_key)`
+
+### Source
+- Any LSOA-level IMD CSV (gov.uk publication). URL is supplied as a workflow input. Designed to handle both 2019-style and 2025-style headers without code changes.
+
+### Behaviour
+- Auto-detects LSOA code/name, local-authority code/name and region code/name columns from a candidate list (`LSOA_CODE_2021`, `LSOA11CD`, `LSOA21CD`, `LADCD`, etc.).
+- Stores everything else (all IMD scores, ranks, deciles, sub-domains) as tall `metric_key` / `metric_value` rows — robust to whatever shape the chosen release uses.
+- Bulk upsert in 2000-row batches.
+
+### Required input
+- `imd_year`, `publication_label`, `imd_csv_url`
+
+### Joinability
+- Once both `gp_practice_geography.lsoa_code` and `imd_lsoa_metrics.lsoa_code` are populated, you can join practice → LSOA → IMD to derive a deprivation profile per practice.
+
+## 5.8 ONS geography (postcode lookup) import (new path)
+
+### Workflow
+- `.github/workflows/import-ons-geography.yml`
+
+### Script
+- `scripts/import_ons_geography.mjs`
+
+### Table SQL
+- `sql/create_gp_practice_geography.sql`
+
+### Target table
+- `gp_practice_geography` (PK = `practice_code`)
+
+### Source
+- `https://api.postcodes.io/postcodes/{normalisedPostcode}` (postcodes.io serves the ONS postcode reference data without needing a key).
+
+### Stored fields
+- Identification: `practice_code`, `postcode`, `postcode_normalised`, `outcode`, `incode`
+- Geography labels and codes (paired): country / region / local_authority_district / ward / parish / parliamentary_constituency / ccg / nhs_ha / lsoa / msoa / oa
+- Coordinates: `latitude`, `longitude`, `eastings`, `northings`
+- Provenance: `source`, `source_url`, `raw_payload`, `imported_at`
+
+### Required input
+- `practice_code`, `postcode`, `postcodes_api_base`
+
 ## 6) Dashboard expansion details
 
-`index.html` now has three isolated sections:
+`index.html` now has eight isolated import sections:
 
 1. Patient Count Import
 2. Workforce Metric Import
 3. GP Patient Survey Import
+4. CQC Profile Import
+5. NHS.uk GP Profile Import
+6. Practice Prescribing Summary Import
+7. English Indices of Deprivation (LSOA) Import
+8. ONS Geography (Postcode Lookup) Import
 
 Each section includes:
 
@@ -213,8 +367,15 @@ Repo Actions secrets required:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `CQC_SUBSCRIPTION_KEY` — required for the CQC profile workflow only
+- `NHS_API_KEY` — required for the NHS.uk profile workflow only
 
 Fallback secret names are supported in some workflows (`SUPABASE_SECRET_KEY`, `SUPABASE_KEY`, etc.), but standard names above are recommended.
+
+To register for the third-party API keys:
+
+- CQC: subscribe to the CQC Public API on the CQC API portal (Azure APIM). Add the resulting subscription key as `CQC_SUBSCRIPTION_KEY`.
+- NHS: subscribe to the NHS service-search APIM product on developer.api.nhs.uk. Add the resulting subscription key as `NHS_API_KEY`.
 
 ## 8) Important implementation/ops notes
 
@@ -241,6 +402,11 @@ The pipelines are separated by table and workflow:
 
 - `sql/create_gp_practice_workforce_metrics.sql`
 - `sql/create_gp_practice_patient_survey_metrics.sql`
+- `sql/create_gp_practice_cqc_profile.sql`
+- `sql/create_gp_practice_nhs_profile.sql`
+- `sql/create_gp_practice_prescribing_summary.sql`
+- `sql/create_imd_lsoa_metrics.sql`
+- `sql/create_gp_practice_geography.sql`
 
 Run these in Supabase SQL Editor before first use of each corresponding import workflow.
 
@@ -254,6 +420,7 @@ Recent commit progression:
 - `ec2accf` Added configurable patient CSV URLs and explicit M-code input
 - `bac7b9a` Added separate workforce practice-metric import path
 - `255f6a5` Added separate GP Patient Survey import path
+- `(next)` Added five public-data import paths: CQC profile, NHS.uk profile, prescribing summary, IMD (LSOA), ONS geography
 
 ## 11) Current status summary
 
@@ -262,8 +429,13 @@ Implemented and wired:
 - Patient import path
 - Workforce (practice-high-level) path
 - GPPS path
-- Dashboard controls for all three
-- Run monitoring and table-arrival checks for all three
+- CQC profile path
+- NHS.uk profile path
+- Prescribing summary path
+- IMD (LSOA) bulk path
+- ONS geography (per-practice) path
+- Dashboard controls for all eight
+- Run monitoring and table-arrival checks for all eight
 
 Pending / future-phase ideas:
 

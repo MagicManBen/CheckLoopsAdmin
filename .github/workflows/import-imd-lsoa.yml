@@ -1,0 +1,44 @@
+name: Import English Indices of Deprivation (LSOA)
+
+on:
+  workflow_dispatch:
+    inputs:
+      imd_year:
+        description: "IMD release year (integer)"
+        required: true
+        default: "2025"
+      publication_label:
+        description: "Publication label"
+        required: true
+        default: "English Indices of Deprivation 2025"
+      imd_csv_url:
+        description: "IMD LSOA-level CSV URL"
+        required: true
+        default: ""
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run IMD importer
+        env:
+          IMD_YEAR: ${{ github.event.inputs.imd_year }}
+          PUBLICATION_LABEL: ${{ github.event.inputs.publication_label }}
+          IMD_CSV_URL: ${{ github.event.inputs.imd_csv_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$IMD_YEAR" ] || [ -z "$IMD_CSV_URL" ]; then
+            echo "Missing required environment values."
+            echo "Secrets required: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+          node scripts/import_imd_lsoa.mjs

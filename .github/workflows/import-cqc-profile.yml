@@ -1,0 +1,57 @@
+name: Import CQC Profile
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "GP practice ODS code (example: M83076)"
+        required: true
+        default: "M83076"
+      cqc_location_id:
+        description: "Optional: CQC location ID (skips ODS lookup if provided)"
+        required: false
+        default: ""
+      cqc_provider_id:
+        description: "Optional: CQC provider ID (otherwise derived from location)"
+        required: false
+        default: ""
+      cqc_api_base:
+        description: "CQC public API base URL"
+        required: true
+        default: "https://api.service.cqc.org.uk/public/v1"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run CQC profile importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          CQC_LOCATION_ID: ${{ github.event.inputs.cqc_location_id }}
+          CQC_PROVIDER_ID: ${{ github.event.inputs.cqc_provider_id }}
+          CQC_API_BASE: ${{ github.event.inputs.cqc_api_base }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+          CQC_SUBSCRIPTION_KEY: ${{ secrets.CQC_SUBSCRIPTION_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing required SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY secrets."
+            exit 1
+          fi
+          if [ -z "$CQC_SUBSCRIPTION_KEY" ]; then
+            echo "Missing required CQC_SUBSCRIPTION_KEY secret (Ocp-Apim-Subscription-Key for CQC public API)."
+            exit 1
+          fi
+          if [ -z "$PRACTICE_CODE" ] && [ -z "$CQC_LOCATION_ID" ]; then
+            echo "Provide practice_code or cqc_location_id."
+            exit 1
+          fi
+          node scripts/import_cqc_profile.mjs

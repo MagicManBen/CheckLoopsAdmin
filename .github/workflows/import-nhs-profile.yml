@@ -1,0 +1,52 @@
+name: Import NHS.uk GP Profile
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "GP practice ODS code (example: M83076)"
+        required: true
+        default: "M83076"
+      nhs_api_base:
+        description: "NHS service-search base URL"
+        required: true
+        default: "https://api.nhs.uk/service-search"
+      nhs_api_version:
+        description: "NHS service-search api-version"
+        required: true
+        default: "2"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run NHS profile importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          NHS_API_BASE: ${{ github.event.inputs.nhs_api_base }}
+          NHS_API_VERSION: ${{ github.event.inputs.nhs_api_version }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+          NHS_API_KEY: ${{ secrets.NHS_API_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing required SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY secrets."
+            exit 1
+          fi
+          if [ -z "$NHS_API_KEY" ]; then
+            echo "Missing required NHS_API_KEY secret (Ocp-Apim-Subscription-Key for api.nhs.uk)."
+            exit 1
+          fi
+          if [ -z "$PRACTICE_CODE" ]; then
+            echo "Missing practice_code."
+            exit 1
+          fi
+          node scripts/import_nhs_profile.mjs
