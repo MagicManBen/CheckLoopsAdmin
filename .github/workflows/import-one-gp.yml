@@ -23,6 +23,13 @@ jobs:
       - name: Run importer
         env:
           ODS_CODE: ${{ github.event.inputs.ods_code }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/import_one_gp_patient_counts.mjs
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing required secrets."
+            echo "Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in:"
+            echo "Repo Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+          node scripts/import_one_gp_patient_counts.mjs
