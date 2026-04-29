@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "n": "tWMWk3P74rUSFXSLFS_kY44XZPe-xdaic8MhaNjoCyb-PkldH3Yp487tE4NDEHoDdqusJwjQ6lW_kh4WLMok9UdwjCNJH12DamlEb6rviQp-1LsbHr45SPOP9crGdyWEVtNL_gL81Nq7X07kTa3lAaGahGq0IQx6KaQIrx5O9_O3c-hK9vlgfcfaQBaRgPK8liHUdVDveWy6ygOjTQQMypRbJj1pyrPbwZ7dYQc4ymnXFiz8Gtj1lhYdBP9Wgc9yKikiwHzRvqjS_ZjOkqQQ3cJ6-C6UOImM0Rz4hGNqoReFl8CSAsyRrH0cDx4QzpJcT5HxLJadR508v_NlXcSKNE_oNU3i8moP7JxKLr4xzSSI1n-TSEkqpIamDsxRJPZ-GRFtHKQH47fjiK4sytYqSzAfTRHlB56AZ5nRHr0BkeaMLWxzukTtBImmqcyT61EoJ_vm7XtA9o_fgdsBilKY_vBOAsShi73_yoDipWIvq1SiE8ancmWKUTauc5eBFAHU1RsgR_7sSAL5ZWcgTFIZUhZcW5XSHCY8lP5cBTF1HkH1KtDYPNe6R4PqyWhgxOXfaRuENXYltwv9v1ZgRNoI02Sjz_qWSBPEVkJ1SYPvpAcMN9YaoUhsYSV1G28FqfQaJDqlj0heT2Xa9hciDq1Pcl3n5pkKrxQ0l0tVOenHp5s",
+      "e": "AQAB",
+      "kid": "checkloops-key-1",
+      "use": "sig",
+      "alg": "RS512"
+    }
+  ]
+}

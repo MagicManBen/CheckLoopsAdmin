@@ -1,1 +1,5 @@
 data/
+nhs_private.pem
+nhs_public.pem
+*.pem
+!nhs-jwks.json
