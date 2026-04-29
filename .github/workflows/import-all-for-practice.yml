@@ -1,0 +1,54 @@
+name: Import all data for one practice
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "GP practice ODS code (e.g. M83076)"
+        required: true
+      postcode:
+        description: "Practice postcode (optional — auto-resolved via NHS ORD if blank)"
+        required: false
+        default: ""
+      run_id:
+        description: "Existing practice_ingestion_runs.id to update (optional — orchestrator creates one if blank)"
+        required: false
+        default: ""
+      triggered_by:
+        description: "Trigger source label (free text, e.g. 'edge-function', 'manual')"
+        required: false
+        default: "manual"
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run orchestrator
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          POSTCODE: ${{ github.event.inputs.postcode }}
+          RUN_ID: ${{ github.event.inputs.run_id }}
+          TRIGGERED_BY: ${{ github.event.inputs.triggered_by }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+          NHS_API_KEY: ${{ secrets.NHS_API_KEY }}
+          NHS_PRIVATE_KEY_PEM: ${{ secrets.NHS_PRIVATE_KEY_PEM }}
+          NHS_KID: ${{ secrets.NHS_KID }}
+        run: |
+          if [ -z "$PRACTICE_CODE" ]; then
+            echo "practice_code input is required"
+            exit 1
+          fi
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing Supabase secrets."
+            exit 1
+          fi
+          node scripts/orchestrate_practice_report.mjs

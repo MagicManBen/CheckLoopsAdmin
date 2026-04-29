@@ -18,7 +18,7 @@ on:
       nhs_search_path:
         description: "Search endpoint path (relative to nhs_api_base)"
         required: true
-        default: "/directory-of-services-search-api/v3/Organisations"
+        default: "/service-search-api"
       nhs_api_version:
         description: "API version query parameter"
         required: true
