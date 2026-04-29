@@ -19,7 +19,7 @@ GitHub-hosted admin tool to run GP patient-count imports without downloading CSV
 ## Use it
 
 1. Open your GitHub Pages URL for this repo.
-2. Fill in owner/repo/branch/ODS code.
+2. Fill in owner/repo/branch, GP practice M/ODS code (for example `M83076`), and the latest male/female NHS CSV URLs.
 3. Paste a GitHub token that has `actions:write` for this repository.
 4. Click **Run Import Workflow**.
 5. Check GitHub Actions for progress and logs.

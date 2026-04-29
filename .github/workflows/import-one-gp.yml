@@ -7,6 +7,14 @@ on:
         description: "GP ODS code (example: M83076)"
         required: true
         default: "M83076"
+      male_csv_url:
+        description: "Male CSV URL"
+        required: true
+        default: "https://files.digital.nhs.uk/A1/BF1917/gp-reg-pat-prac-sing-age-male.csv"
+      female_csv_url:
+        description: "Female CSV URL"
+        required: true
+        default: "https://files.digital.nhs.uk/5D/93A12A/gp-reg-pat-prac-sing-age-female.csv"
 
 jobs:
   import:
@@ -23,11 +31,13 @@ jobs:
       - name: Run importer
         env:
           ODS_CODE: ${{ github.event.inputs.ods_code }}
+          MALE_CSV_URL: ${{ github.event.inputs.male_csv_url }}
+          FEMALE_CSV_URL: ${{ github.event.inputs.female_csv_url }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "Missing required secrets."
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$MALE_CSV_URL" ] || [ -z "$FEMALE_CSV_URL" ]; then
+            echo "Missing required environment values."
             echo "Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in:"
             echo "Repo Settings -> Secrets and variables -> Actions"
             exit 1

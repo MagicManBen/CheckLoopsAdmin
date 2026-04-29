@@ -192,12 +192,22 @@
         </div>
         <div class="row">
           <div>
-            <label for="ods">ODS Code</label>
+            <label for="ods">GP Practice M/ODS Code</label>
             <input id="ods" value="M83076" />
           </div>
           <div>
             <label for="token">GitHub Token</label>
             <input id="token" type="password" placeholder="ghp_... (actions:write)" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="maleCsvUrl">Male CSV URL</label>
+            <input id="maleCsvUrl" value="https://files.digital.nhs.uk/A1/BF1917/gp-reg-pat-prac-sing-age-male.csv" />
+          </div>
+          <div>
+            <label for="femaleCsvUrl">Female CSV URL</label>
+            <input id="femaleCsvUrl" value="https://files.digital.nhs.uk/5D/93A12A/gp-reg-pat-prac-sing-age-female.csv" />
           </div>
         </div>
         <div class="actions">
@@ -254,7 +264,7 @@
   </main>
 
   <script>
-    const fields = ["owner", "repo", "branch", "ods", "supabaseUrl", "supabaseAnonKey"];
+    const fields = ["owner", "repo", "branch", "ods", "maleCsvUrl", "femaleCsvUrl", "supabaseUrl", "supabaseAnonKey"];
     const statusEl = document.getElementById("status");
     const dataStatusEl = document.getElementById("dataStatus");
     const runsBody = document.getElementById("runsBody");
@@ -338,9 +348,20 @@
       const repo = val("repo");
       const branch = val("branch") || "main";
       const ods = val("ods").toUpperCase();
-      if (!owner || !repo || !branch || !ods) throw new Error("Owner, repo, branch and ODS code are required.");
+      const maleCsvUrl = val("maleCsvUrl");
+      const femaleCsvUrl = val("femaleCsvUrl");
+      if (!owner || !repo || !branch || !ods || !maleCsvUrl || !femaleCsvUrl) {
+        throw new Error("Owner, repo, branch, GP code, and both CSV URLs are required.");
+      }
       const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-one-gp.yml/dispatches`;
-      const payload = { ref: branch, inputs: { ods_code: ods } };
+      const payload = {
+        ref: branch,
+        inputs: {
+          ods_code: ods,
+          male_csv_url: maleCsvUrl,
+          female_csv_url: femaleCsvUrl
+        }
+      };
       const r = await fetch(url, {
         method: "POST",
         headers: { ...ghHeaders(), "Content-Type": "application/json" },

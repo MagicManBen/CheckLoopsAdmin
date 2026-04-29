@@ -6,15 +6,19 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TABLE_NAME = "gp_practice_patient_age_counts";
 const BATCH_SIZE = 500;
 const ODS_CODE = (process.env.ODS_CODE || "M83076").trim().toUpperCase();
+const DEFAULT_MALE_CSV_URL = "https://files.digital.nhs.uk/A1/BF1917/gp-reg-pat-prac-sing-age-male.csv";
+const DEFAULT_FEMALE_CSV_URL = "https://files.digital.nhs.uk/5D/93A12A/gp-reg-pat-prac-sing-age-female.csv";
+const MALE_CSV_URL = (process.env.MALE_CSV_URL || DEFAULT_MALE_CSV_URL).trim();
+const FEMALE_CSV_URL = (process.env.FEMALE_CSV_URL || DEFAULT_FEMALE_CSV_URL).trim();
 const DATA_DIR = path.resolve("data");
 
 const FILES = {
   MALE: {
-    url: "https://files.digital.nhs.uk/A1/BF1917/gp-reg-pat-prac-sing-age-male.csv",
+    url: MALE_CSV_URL,
     path: path.join(DATA_DIR, "gp-reg-pat-prac-sing-age-male.csv")
   },
   FEMALE: {
-    url: "https://files.digital.nhs.uk/5D/93A12A/gp-reg-pat-prac-sing-age-female.csv",
+    url: FEMALE_CSV_URL,
     path: path.join(DATA_DIR, "gp-reg-pat-prac-sing-age-female.csv")
   }
 };
@@ -22,11 +26,16 @@ const FILES = {
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.");
 }
+if (!MALE_CSV_URL.startsWith("http") || !FEMALE_CSV_URL.startsWith("http")) {
+  throw new Error("CSV URLs must be valid http/https links.");
+}
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 async function downloadIfMissing(sex, info) {
-  if (fs.existsSync(info.path) && fs.statSync(info.path).size > 0) {
+  const markerPath = `${info.path}.url`;
+  const existingUrl = fs.existsSync(markerPath) ? fs.readFileSync(markerPath, "utf8").trim() : "";
+  if (fs.existsSync(info.path) && fs.statSync(info.path).size > 0 && existingUrl === info.url) {
     const sizeMb = fs.statSync(info.path).size / 1024 / 1024;
     console.log(`${sex} CSV already exists: ${info.path} (${sizeMb.toFixed(2)} MB)`);
     return;
@@ -36,6 +45,7 @@ async function downloadIfMissing(sex, info) {
   if (!res.ok) throw new Error(`Failed to download ${sex} CSV (${res.status})`);
   const bytes = Buffer.from(await res.arrayBuffer());
   fs.writeFileSync(info.path, bytes);
+  fs.writeFileSync(markerPath, info.url);
   const sizeMb = bytes.length / 1024 / 1024;
   console.log(`Saved ${sex} CSV: ${sizeMb.toFixed(2)} MB`);
 }
@@ -157,6 +167,8 @@ async function importOnePractice(sex, csvPath, sourceUrl) {
 
 async function main() {
   console.log(`Target practice: ${ODS_CODE}`);
+  console.log(`Male CSV URL: ${MALE_CSV_URL}`);
+  console.log(`Female CSV URL: ${FEMALE_CSV_URL}`);
   let grandTotal = 0;
   for (const [sex, info] of Object.entries(FILES)) {
     await downloadIfMissing(sex, info);
