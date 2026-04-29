@@ -1,15 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const NHS_API_KEY = process.env.NHS_API_KEY;
+const NHS_API_KEY = (process.env.NHS_API_KEY || "").trim();
+const NHS_PRIVATE_KEY_PEM = (process.env.NHS_PRIVATE_KEY_PEM || "").trim();
+const NHS_KID = (process.env.NHS_KID || "checkloops-key-1").trim();
 
 const TABLE_NAME = "gp_practice_nhs_profile";
 
 const PRACTICE_CODE = (process.env.PRACTICE_CODE || "").trim().toUpperCase();
-const NHS_API_BASE = (process.env.NHS_API_BASE || "https://api.nhs.uk/service-search").trim().replace(/\/+$/, "");
-const NHS_API_VERSION = (process.env.NHS_API_VERSION || "2").trim();
+const NHS_API_BASE = (process.env.NHS_API_BASE || "https://sandbox.api.service.nhs.uk").trim().replace(/\/+$/, "");
+const NHS_TOKEN_URL = (process.env.NHS_TOKEN_URL || `${NHS_API_BASE}/oauth2/token`).trim();
+const NHS_SEARCH_PATH = (process.env.NHS_SEARCH_PATH || "/directory-of-services-search-api/v3/Organisations").trim();
+const NHS_API_VERSION = (process.env.NHS_API_VERSION || "3").trim();
 
 const DATA_DIR = path.resolve("data");
 
@@ -20,45 +25,111 @@ if (!PRACTICE_CODE) {
   throw new Error("Missing PRACTICE_CODE.");
 }
 if (!NHS_API_KEY) {
-  throw new Error("Missing NHS_API_KEY environment variable (Ocp-Apim-Subscription-Key for api.nhs.uk).");
+  throw new Error("Missing NHS_API_KEY (client_id from the NHS Developer console).");
+}
+if (!NHS_PRIVATE_KEY_PEM || !NHS_PRIVATE_KEY_PEM.includes("PRIVATE KEY")) {
+  throw new Error("Missing or malformed NHS_PRIVATE_KEY_PEM. Paste the full PEM including BEGIN/END markers.");
 }
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
-function nhsHeaders() {
-  return {
-    "Ocp-Apim-Subscription-Key": NHS_API_KEY,
-    "subscription-key": NHS_API_KEY,
-    Accept: "application/json",
-    "User-Agent": "CheckLoopsAdmin-Importer/1.0"
-  };
+function base64UrlEncode(buffer) {
+  const b64 = Buffer.isBuffer(buffer) ? buffer.toString("base64") : Buffer.from(buffer).toString("base64");
+  return b64.replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
-async function nhsFetch(url) {
-  const res = await fetch(url, { headers: nhsHeaders() });
+function buildSignedClientAssertion() {
+  const now = Math.floor(Date.now() / 1000);
+  const header = {
+    alg: "RS512",
+    typ: "JWT",
+    kid: NHS_KID
+  };
+  const payload = {
+    iss: NHS_API_KEY,
+    sub: NHS_API_KEY,
+    aud: NHS_TOKEN_URL,
+    jti: crypto.randomUUID(),
+    iat: now,
+    exp: now + 300
+  };
+  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
+  const signature = crypto.sign("sha512", Buffer.from(signingInput), {
+    key: NHS_PRIVATE_KEY_PEM,
+    padding: crypto.constants.RSA_PKCS1_PADDING
+  });
+  return `${signingInput}.${base64UrlEncode(signature)}`;
+}
+
+async function exchangeForAccessToken() {
+  const assertion = buildSignedClientAssertion();
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+    client_assertion: assertion
+  });
+  console.log(`Requesting access token from ${NHS_TOKEN_URL}`);
+  const res = await fetch(NHS_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+      "User-Agent": "CheckLoopsAdmin-Importer/1.0"
+    },
+    body
+  });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`NHS API request failed (${res.status}) for ${url}: ${body.slice(0, 400)}`);
+    const text = await res.text();
+    throw new Error(`NHS token exchange failed (${res.status}): ${text.slice(0, 600)}`);
+  }
+  const json = await res.json();
+  if (!json.access_token) {
+    throw new Error(`NHS token response missing access_token: ${JSON.stringify(json).slice(0, 400)}`);
+  }
+  console.log(`Got NHS access token (expires_in=${json.expires_in || "?"}s).`);
+  return json.access_token;
+}
+
+async function nhsAuthedFetch(url, accessToken) {
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+      apikey: NHS_API_KEY,
+      "User-Agent": "CheckLoopsAdmin-Importer/1.0"
+    }
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`NHS API request failed (${res.status}) for ${url}: ${text.slice(0, 600)}`);
   }
   return res.json();
 }
 
-async function searchByOds(odsCode) {
+function buildSearchUrl() {
+  if (/[?&]/.test(NHS_SEARCH_PATH)) {
+    return `${NHS_API_BASE}${NHS_SEARCH_PATH}`;
+  }
   const params = new URLSearchParams({
     "api-version": NHS_API_VERSION,
-    search: odsCode,
+    search: PRACTICE_CODE,
     searchFields: "OrganisationCode,ODSCode",
     $top: "5"
   });
-  const url = `${NHS_API_BASE}/search?${params.toString()}`;
-  const data = await nhsFetch(url);
-  const items = data?.value || [];
-  if (!items.length) {
+  return `${NHS_API_BASE}${NHS_SEARCH_PATH}?${params.toString()}`;
+}
+
+async function searchByOds(accessToken) {
+  const url = buildSearchUrl();
+  console.log(`Searching NHS for ODS ${PRACTICE_CODE} at ${url}`);
+  const data = await nhsAuthedFetch(url, accessToken);
+  const items = data?.value || data?.results || data?.organisations || [];
+  if (!Array.isArray(items) || !items.length) {
     return null;
   }
   const exact = items.find((x) => {
-    const c = (x.OrganisationCode || x.ODSCode || "").toString().toUpperCase();
-    return c === odsCode;
+    const c = (x.OrganisationCode || x.ODSCode || x.organisationCode || x.odsCode || "").toString().toUpperCase();
+    return c === PRACTICE_CODE;
   });
   return exact || items[0];
 }
@@ -105,10 +176,10 @@ async function upsertRow(row) {
 }
 
 async function main() {
-  console.log(`Searching NHS service-search for ODS ${PRACTICE_CODE}...`);
-  const item = await searchByOds(PRACTICE_CODE);
+  const accessToken = await exchangeForAccessToken();
+  const item = await searchByOds(accessToken);
   if (!item) {
-    throw new Error(`No NHS service-search result for ODS code ${PRACTICE_CODE}.`);
+    throw new Error(`No NHS organisation found for ODS code ${PRACTICE_CODE}.`);
   }
 
   fs.writeFileSync(
@@ -150,8 +221,8 @@ async function main() {
     services: asJsonOrNull(item.Services || item.ServicesProvided),
     staff: asJsonOrNull(item.Staff || item.GPs),
     metrics: asJsonOrNull(item.Metrics),
-    source_url: `${NHS_API_BASE}/search?search=${encodeURIComponent(PRACTICE_CODE)}`,
-    source_api: "api.nhs.uk service-search",
+    source_url: buildSearchUrl(),
+    source_api: "NHS API platform — Directory of Services Search API (Private Key JWT)",
     raw_payload: item,
     imported_at: new Date().toISOString()
   };
