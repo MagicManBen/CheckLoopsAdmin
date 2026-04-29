@@ -180,7 +180,7 @@
   <main class="wrap">
     <div class="top">
       <h1>CheckLoops Import Dashboard</h1>
-      <p class="hint">Separate import controls for patient counts and GP workforce metrics. All processing runs in GitHub Actions.</p>
+      <p class="hint">Separate import controls for patient counts, GP workforce metrics, and GP Patient Survey metrics. All processing runs in GitHub Actions.</p>
     </div>
 
     <h2 class="section-title">Shared Repository + Credentials</h2>
@@ -354,6 +354,74 @@
         </tbody>
       </table>
     </section>
+
+    <h2 class="section-title">GP Patient Survey Import</h2>
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Control</h2>
+        <p class="sub">Imports one practice from GP Patient Survey practice data (weighted) into `gp_practice_patient_survey_metrics`.</p>
+        <div class="row">
+          <div>
+            <label for="svyPracticeCode">GP Practice M/ODS Code</label>
+            <input id="svyPracticeCode" value="M83076" />
+          </div>
+          <div>
+            <label for="svyYear">Survey Year</label>
+            <input id="svyYear" value="2025" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="svyPublicationLabel">Publication Label</label>
+            <input id="svyPublicationLabel" value="GP Patient Survey 2025 Practice Data (weighted)" />
+          </div>
+          <div>
+            <label for="svyCsvUrl">Survey CSV URL</label>
+            <input id="svyCsvUrl" value="https://gp-patient.co.uk/FileDownload/Download?fileRedirect=2025%2Fsurvey-results%2Fpractice-results%2Fpractice-data-csv%2FGPPS_2025_Practice_data_(weighted)_(csv)_PUBLIC.csv" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="runSurveyBtn" class="primary" type="button">Run GPPS Import</button>
+          <button id="refreshSurveyRunsBtn" class="ghost" type="button">Refresh GPPS Runs</button>
+          <button id="watchSurveyBtn" class="ghost" type="button">Watch GPPS Run</button>
+        </div>
+        <div id="svyStatus" class="status">Ready.</div>
+      </div>
+
+      <div class="panel">
+        <h2>GPPS Data Check</h2>
+        <p class="sub">Checks `gp_practice_patient_survey_metrics` for selected practice and survey year.</p>
+        <div class="actions">
+          <button id="checkSurveyDataBtn" class="primary" type="button">Check GPPS Data Arrival</button>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="k">Last Import Time (UTC)</div><div id="svyLastImport" class="v">-</div></div>
+          <div class="card"><div class="k">Metric Rows Found</div><div id="svyRows" class="v">-</div></div>
+          <div class="card"><div class="k">Numeric Metrics</div><div id="svyNumericRows" class="v">-</div></div>
+          <div class="card"><div class="k">Text Metrics</div><div id="svyTextRows" class="v">-</div></div>
+        </div>
+        <div id="svyDataStatus" class="status">No GPPS data check yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent GPPS Import Runs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Conclusion</th>
+            <th>Created</th>
+            <th>Updated</th>
+            <th>Actor</th>
+          </tr>
+        </thead>
+        <tbody id="svyRunsBody">
+          <tr><td colspan="6">No GPPS runs loaded yet.</td></tr>
+        </tbody>
+      </table>
+    </section>
   </main>
 
   <script>
@@ -370,16 +438,24 @@
       "wfSnapshotDate",
       "wfPublicationLabel",
       "wfPracticeZipUrl",
-      "futureIndividualZipUrl"
+      "futureIndividualZipUrl",
+      "svyPracticeCode",
+      "svyYear",
+      "svyPublicationLabel",
+      "svyCsvUrl"
     ];
     const statusEl = document.getElementById("status");
     const dataStatusEl = document.getElementById("dataStatus");
     const wfStatusEl = document.getElementById("wfStatus");
     const wfDataStatusEl = document.getElementById("wfDataStatus");
+    const svyStatusEl = document.getElementById("svyStatus");
+    const svyDataStatusEl = document.getElementById("svyDataStatus");
     const runsBody = document.getElementById("runsBody");
     const wfRunsBody = document.getElementById("wfRunsBody");
+    const svyRunsBody = document.getElementById("svyRunsBody");
     let watchInterval = null;
     let wfWatchInterval = null;
+    let svyWatchInterval = null;
 
     function setStatus(text, tone = "ok") {
       statusEl.textContent = text;
@@ -396,6 +472,14 @@
     function setWfDataStatus(text, tone = "ok") {
       wfDataStatusEl.textContent = text;
       wfDataStatusEl.className = `status ${tone}`;
+    }
+    function setSvyStatus(text, tone = "ok") {
+      svyStatusEl.textContent = text;
+      svyStatusEl.className = `status ${tone}`;
+    }
+    function setSvyDataStatus(text, tone = "ok") {
+      svyDataStatusEl.textContent = text;
+      svyDataStatusEl.className = `status ${tone}`;
     }
     function val(id) {
       return document.getElementById(id).value.trim();
@@ -526,6 +610,39 @@
       return practiceCode;
     }
 
+    async function dispatchSurveyRun() {
+      const owner = val("owner");
+      const repo = val("repo");
+      const branch = val("branch") || "main";
+      const practiceCode = val("svyPracticeCode").toUpperCase();
+      const surveyYear = val("svyYear");
+      const publicationLabel = val("svyPublicationLabel");
+      const surveyCsvUrl = val("svyCsvUrl");
+      if (!owner || !repo || !branch || !practiceCode || !surveyYear || !publicationLabel || !surveyCsvUrl) {
+        throw new Error("Owner, repo, branch, practice code, survey year, publication label, and survey CSV URL are required.");
+      }
+      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/import-gp-patient-survey.yml/dispatches`;
+      const payload = {
+        ref: branch,
+        inputs: {
+          practice_code: practiceCode,
+          survey_year: surveyYear,
+          publication_label: publicationLabel,
+          survey_csv_url: surveyCsvUrl
+        }
+      };
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...ghHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`GPPS dispatch failed (${r.status}): ${body}`);
+      }
+      return practiceCode;
+    }
+
     async function checkSupabasePatientData() {
       const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
       const apikey = val("supabaseAnonKey");
@@ -592,6 +709,41 @@
       setWfDataStatus(msg, rows.length ? "ok" : "warn");
     }
 
+    async function checkSupabaseSurveyData() {
+      const supabaseUrl = val("supabaseUrl").replace(/\/+$/, "");
+      const apikey = val("supabaseAnonKey");
+      const practiceCode = val("svyPracticeCode").toUpperCase();
+      const surveyYear = val("svyYear");
+      if (!supabaseUrl || !apikey || !practiceCode || !surveyYear) {
+        throw new Error("Supabase URL, key, survey practice code, and survey year are required.");
+      }
+      const q = new URLSearchParams({
+        select: "metric_value,metric_value_text,imported_at",
+        practice_code: `eq.${practiceCode}`,
+        survey_year: `eq.${surveyYear}`,
+        order: "imported_at.desc",
+        limit: "5000"
+      });
+      const url = `${supabaseUrl}/rest/v1/gp_practice_patient_survey_metrics?${q.toString()}`;
+      const r = await fetch(url, { headers: { apikey, Authorization: `Bearer ${apikey}` } });
+      if (!r.ok) {
+        const body = await r.text();
+        throw new Error(`Supabase GPPS query failed (${r.status}): ${body}`);
+      }
+      const rows = await r.json();
+      const lastImport = rows[0]?.imported_at || null;
+      const numericRows = rows.filter((x) => x.metric_value !== null).length;
+      const textRows = rows.filter((x) => x.metric_value_text !== null).length;
+      document.getElementById("svyLastImport").textContent = lastImport ? fmtTime(lastImport) : "-";
+      document.getElementById("svyRows").textContent = `${rows.length}`;
+      document.getElementById("svyNumericRows").textContent = `${numericRows}`;
+      document.getElementById("svyTextRows").textContent = `${textRows}`;
+      const msg = rows.length
+        ? `GPPS data OK for ${practiceCode} (${surveyYear}). Latest imported_at: ${fmtTime(lastImport)}`
+        : `No GPPS rows returned for ${practiceCode} (${surveyYear}).`;
+      setSvyDataStatus(msg, rows.length ? "ok" : "warn");
+    }
+
     async function startPatientWatch() {
       if (watchInterval) clearInterval(watchInterval);
       let cycles = 0;
@@ -634,6 +786,29 @@
           clearInterval(wfWatchInterval);
           wfWatchInterval = null;
           setWfStatus(String(e), "bad");
+        }
+      }, 8000);
+    }
+
+    async function startSurveyWatch() {
+      if (svyWatchInterval) clearInterval(svyWatchInterval);
+      let cycles = 0;
+      setSvyStatus("Watching latest GPPS run every 8s...", "warn");
+      svyWatchInterval = setInterval(async () => {
+        cycles += 1;
+        try {
+          const runs = await fetchWorkflowRuns("import-gp-patient-survey.yml", svyRunsBody, "No GPPS runs yet.");
+          const latest = runs[0];
+          if (!latest) return;
+          setSvyStatus(`GPPS run #${latest.run_number}: status=${latest.status}, conclusion=${latest.conclusion || "n/a"}`, badgeClass(latest.conclusion));
+          if (latest.status === "completed" || cycles >= 45) {
+            clearInterval(svyWatchInterval);
+            svyWatchInterval = null;
+          }
+        } catch (e) {
+          clearInterval(svyWatchInterval);
+          svyWatchInterval = null;
+          setSvyStatus(String(e), "bad");
         }
       }, 8000);
     }
@@ -702,9 +877,42 @@
       }
     });
 
+    document.getElementById("runSurveyBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        const code = await dispatchSurveyRun();
+        setSvyStatus(`GPPS import dispatched for ${code}. Refreshing run list...`, "ok");
+        await fetchWorkflowRuns("import-gp-patient-survey.yml", svyRunsBody, "No GPPS runs yet.");
+      } catch (e) {
+        setSvyStatus(String(e), "bad");
+      }
+    });
+
+    document.getElementById("refreshSurveyRunsBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await fetchWorkflowRuns("import-gp-patient-survey.yml", svyRunsBody, "No GPPS runs yet.");
+        setSvyStatus("GPPS runs refreshed.", "ok");
+      } catch (e) {
+        setSvyStatus(String(e), "bad");
+      }
+    });
+
+    document.getElementById("watchSurveyBtn").addEventListener("click", startSurveyWatch);
+
+    document.getElementById("checkSurveyDataBtn").addEventListener("click", async () => {
+      saveFields();
+      try {
+        await checkSupabaseSurveyData();
+      } catch (e) {
+        setSvyDataStatus(String(e), "bad");
+      }
+    });
+
     loadFields();
     setStatus("Ready. Add your GitHub token to control patient workflow runs.", "warn");
     setWfStatus("Ready. Workforce import path is configured separately.", "warn");
+    setSvyStatus("Ready. GPPS import path is configured separately.", "warn");
   </script>
 </body>
 </html>

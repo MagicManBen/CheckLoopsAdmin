@@ -7,8 +7,10 @@ GitHub-hosted admin tool to run GP patient-count imports without downloading CSV
 - Hosts a browser page on GitHub Pages (`index.html`).
 - Includes JS server/import code in-repo (`scripts/import_one_gp_patient_counts.mjs`).
 - Includes GP workforce import code (`scripts/import_gp_workforce.mjs`).
+- Includes GP Patient Survey import code (`scripts/import_gp_patient_survey.mjs`).
 - Runs import fully in GitHub Actions (`.github/workflows/import-one-gp.yml`).
 - Runs workforce import fully in GitHub Actions (`.github/workflows/import-gp-workforce.yml`).
+- Runs GP Patient Survey import fully in GitHub Actions (`.github/workflows/import-gp-patient-survey.yml`).
 
 ## One-time setup
 
@@ -48,6 +50,24 @@ Notes:
 
 - This phase imports practice-high-level workforce metrics only.
 - Individual-level workforce CSV is intentionally not imported yet (future phase).
+
+## GP Patient Survey import (practice-level metrics)
+
+Current implemented GPPS path imports one practice from the weighted practice CSV:
+
+`https://gp-patient.co.uk/FileDownload/Download?fileRedirect=2025%2Fsurvey-results%2Fpractice-results%2Fpractice-data-csv%2FGPPS_2025_Practice_data_(weighted)_(csv)_PUBLIC.csv`
+
+Target table:
+
+- `public.gp_practice_patient_survey_metrics`
+
+Create table SQL:
+
+- `sql/create_gp_practice_patient_survey_metrics.sql`
+
+Conflict key used by upsert:
+
+- `practice_code,survey_year,metric_key`
 
 ## Notes
 
