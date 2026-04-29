@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CheckLoops — Your practice report</title>
+  <style>
+    :root {
+      --ink:        #0f1b35;
+      --ink-soft:   #2a3754;
+      --muted:      #5b6a86;
+      --line:       #d8e1f1;
+      --panel:      #ffffff;
+      --soft:       #f4f7fc;
+      --primary:    #2455e6;
+      --primary-2:  #1a44c2;
+      --ok:         #137a3a;
+      --ok-bg:      #d8f3df;
+      --warn:       #a35400;
+      --warn-bg:    #fcefd2;
+      --bad:        #b21a1a;
+      --bad-bg:     #fde0e0;
+      --pending:    #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(1100px 700px at 12% -10%, rgba(99,145,255,0.30) 0%, transparent 55%),
+        radial-gradient(900px 600px at 92% 0%, rgba(56,205,225,0.25) 0%, transparent 55%),
+        linear-gradient(170deg, #0a1a3b 0%, #14306a 55%, #1f3f8a 100%);
+    }
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 56px 22px 80px;
+      color: #fff;
+    }
+    .brand {
+      font-size: 0.78rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.78);
+      margin: 0 0 12px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: -0.01em;
+    }
+    .lede {
+      margin: 0 0 28px;
+      color: rgba(255,255,255,0.85);
+      font-size: 1.05rem;
+      max-width: 600px;
+    }
+
+    /* ---- Card ---- */
+    .panel {
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 22px;
+      box-shadow: 0 28px 70px rgba(8,18,45,0.35);
+      padding: 28px 28px 24px;
+    }
+    .panel + .panel { margin-top: 18px; }
+    .panel h2 { margin: 0 0 6px; font-size: 1.15rem; }
+    .panel .sub { margin: 0 0 18px; color: var(--muted); font-size: 0.95rem; }
+
+    /* ---- Form ---- */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.92rem;
+      margin-bottom: 6px;
+      color: var(--ink-soft);
+    }
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid #c8d5e6;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 1.1rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: #fff;
+    }
+    button.primary {
+      background: var(--primary);
+      color: #fff;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 24px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.primary:hover { background: var(--primary-2); }
+    button.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .form-error { margin-top: 10px; min-height: 1em; font-size: 0.9rem; color: var(--bad); }
+    .small {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+    .small a { color: var(--primary); }
+
+    /* ---- Status board ---- */
+    .practice-meta {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .practice-meta .chip {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.86rem;
+      color: var(--ink-soft);
+    }
+    .practice-meta .chip strong { color: var(--ink); }
+
+    .progress-overall {
+      margin: 18px 0 8px;
+      height: 10px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+    .progress-overall .bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3b82f6, #06b6d4);
+      transition: width 0.5s ease;
+    }
+    .summary-line {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .jobs {
+      display: grid;
+      gap: 10px;
+    }
+    .job {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: var(--soft);
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .job.success { border-color: rgba(20,122,58,0.4); background: #f3fbf5; }
+    .job.failed  { border-color: rgba(178,26,26,0.4); background: #fdf3f3; }
+    .job.skipped { opacity: 0.7; }
+    .job-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #fff;
+      background: var(--pending);
+    }
+    .job.queued  .job-icon { background: var(--pending); }
+    .job.running .job-icon { background: #3b82f6; animation: spin 1.4s linear infinite; }
+    .job.success .job-icon { background: var(--ok); }
+    .job.failed  .job-icon { background: var(--bad); }
+    .job.skipped .job-icon { background: #cbd5e1; color: #475569; }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .job-title { font-weight: 700; font-size: 0.98rem; }
+    .job-desc  { font-size: 0.85rem; color: var(--muted); margin-top: 2px; word-break: break-word; }
+    .badge {
+      display: inline-block;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+    .badge.queued  { background: #e2e8f0; color: #475569; }
+    .badge.running { background: #dbeafe; color: #1d4ed8; }
+    .badge.success { background: var(--ok-bg);   color: var(--ok); }
+    .badge.failed  { background: var(--bad-bg);  color: var(--bad); }
+    .badge.skipped { background: #f1f5f9; color: #64748b; }
+
+    .footnote {
+      margin-top: 22px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .footnote a { color: var(--primary); }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+      h1 { font-size: 1.55rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="brand">CheckLoops</p>
+    <h1 id="hHeading">Your practice report</h1>
+    <p class="lede" id="pLede">Enter your GP practice ODS code and we'll start preparing your report. We'll pull the latest public data the NHS publishes about your practice — patient list, workforce, patient survey, geography and more.</p>
+
+    <!-- INTAKE -->
+    <section id="intakeView" class="panel">
+      <h2>Start your report</h2>
+      <p class="sub">It takes around 5 minutes. You'll see live progress on this page.</p>
+      <form id="startForm" autocomplete="off">
+        <div class="form-row">
+          <div>
+            <label for="practiceCode">Your practice ODS code</label>
+            <input id="practiceCode" type="text" placeholder="e.g. M83076" maxlength="12" autofocus />
+          </div>
+          <button class="primary" type="submit" id="startBtn">Generate my report</button>
+        </div>
+        <div id="formError" class="form-error"></div>
+        <p class="small">Your ODS code is the 5–7-character identifier the NHS uses for your practice. It appears on your CQC certificate and on prescription forms. Don't know it? <a href="https://odsportal.digital.nhs.uk/Organisation/Search" target="_blank" rel="noreferrer">Search the NHS ODS portal</a>.</p>
+      </form>
+    </section>
+
+    <!-- PROGRESS -->
+    <section id="progressView" class="panel hidden">
+      <h2>Your report is being prepared</h2>
+      <p class="sub" id="progressSub">We're pulling data from public NHS sources. This page will update automatically.</p>
+      <div class="practice-meta" id="practiceMeta"></div>
+      <div class="progress-overall"><div class="bar" id="overallBar"></div></div>
+      <p class="summary-line" id="summaryLine">Starting up…</p>
+      <div class="jobs" id="jobs"></div>
+      <p class="footnote" id="footnote">
+        You can leave this page open or come back later — your report keeps building either way.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const SUPABASE_URL  = "https://kvrcmqpwdkfiqemybmkc.supabase.co";
+    const SUPABASE_ANON = ""; // optional — public read works without anon key for SELECT on tables with public-read RLS
+
+    const $ = (id) => document.getElementById(id);
+    const intakeView = $("intakeView");
+    const progressView = $("progressView");
+    const startForm = $("startForm");
+    const startBtn = $("startBtn");
+    const formError = $("formError");
+    const jobsEl = $("jobs");
+    const overallBar = $("overallBar");
+    const summaryLine = $("summaryLine");
+    const practiceMeta = $("practiceMeta");
+    const progressSub = $("progressSub");
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+    function setError(msg) { formError.textContent = msg || ""; }
+    function showProgress() {
+      intakeView.classList.add("hidden");
+      progressView.classList.remove("hidden");
+    }
+
+    function readRunIdFromHash() {
+      const m = (location.hash || "").match(/run=([0-9a-f-]{36})/i);
+      return m ? m[1] : null;
+    }
+    function setRunIdInHash(runId) {
+      history.replaceState(null, "", `#run=${runId}`);
+    }
+
+    async function startReport(practiceCode) {
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/start-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ practice_code: practiceCode })
+      });
+      const text = await r.text();
+      let json;
+      try { json = JSON.parse(text); } catch { json = { error: text.slice(0, 200) }; }
+      if (!r.ok) throw new Error(json.error || `Failed to start (${r.status}).`);
+      return json;
+    }
+
+    async function fetchRun(runId) {
+      const headers = SUPABASE_ANON ? { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } : {};
+      const url = `${SUPABASE_URL}/rest/v1/practice_ingestion_runs?id=eq.${runId}&select=*`;
+      const r = await fetch(url, { headers });
+      if (!r.ok) throw new Error(`Failed to read run (${r.status})`);
+      const arr = await r.json();
+      return arr[0] || null;
+    }
+    async function fetchJobs(runId) {
+      const headers = SUPABASE_ANON ? { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } : {};
+      const url = `${SUPABASE_URL}/rest/v1/practice_ingestion_jobs?run_id=eq.${runId}&select=*&order=created_at.asc`;
+      const r = await fetch(url, { headers });
+      if (!r.ok) throw new Error(`Failed to read jobs (${r.status})`);
+      return r.json();
+    }
+
+    function renderMeta(run) {
+      if (!run) { practiceMeta.innerHTML = ""; return; }
+      const bits = [];
+      bits.push(`<div class="chip">ODS <strong>${escapeHtml(run.practice_code)}</strong></div>`);
+      if (run.practice_name) bits.push(`<div class="chip">${escapeHtml(run.practice_name)}</div>`);
+      if (run.practice_postcode) bits.push(`<div class="chip">${escapeHtml(run.practice_postcode)}</div>`);
+      if (run.github_run_url) bits.push(`<div class="chip"><a href="${escapeHtml(run.github_run_url)}" target="_blank" rel="noreferrer">View build log</a></div>`);
+      practiceMeta.innerHTML = bits.join("");
+    }
+    function renderJobs(jobs, run) {
+      if (!jobs.length) {
+        jobsEl.innerHTML = `<div class="job queued"><div class="job-icon">…</div><div><div class="job-title">Spinning up</div><div class="job-desc">Allocating a runner — this usually takes 10-30 seconds.</div></div><div><span class="badge queued">Queued</span></div></div>`;
+        return;
+      }
+      jobsEl.innerHTML = jobs.map((j) => {
+        const status = j.status || "queued";
+        const icon = status === "success" ? "✓"
+                  : status === "failed"  ? "✕"
+                  : status === "skipped" ? "—"
+                  : status === "running" ? "⟳"
+                  : "•";
+        const desc = j.message ? escapeHtml(String(j.message).split("\n").slice(-1)[0].slice(0, 120))
+                  : status === "running" ? "Running…"
+                  : status === "queued"  ? "Waiting…"
+                  : status === "skipped" ? "Skipped"
+                  : "";
+        return `
+          <div class="job ${status}">
+            <div class="job-icon">${icon}</div>
+            <div>
+              <div class="job-title">${escapeHtml(j.dataset_label || j.dataset)}</div>
+              <div class="job-desc">${desc}</div>
+            </div>
+            <div><span class="badge ${status}">${status}</span></div>
+          </div>
+        `;
+      }).join("");
+    }
+    function summariseJobs(jobs, run) {
+      const total = jobs.length || 5;
+      const done = jobs.filter((j) => j.status === "success" || j.status === "skipped").length;
+      const failed = jobs.filter((j) => j.status === "failed").length;
+      const running = jobs.filter((j) => j.status === "running").length;
+      const pct = jobs.length ? Math.round((done + (running ? 0.5 : 0)) / total * 100) : 8;
+      overallBar.style.width = `${Math.min(100, Math.max(8, pct))}%`;
+      if (run?.status === "completed") {
+        summaryLine.textContent = `All done. ${done} datasets ready${failed ? ` (${failed} failed)` : ""}.`;
+      } else if (run?.status === "completed_with_errors") {
+        summaryLine.textContent = `Completed with errors — ${failed} failed, ${done} ok.`;
+      } else if (run?.status === "failed") {
+        summaryLine.textContent = `Couldn't finish: ${run.error_message || "see build log."}`;
+      } else if (running > 0) {
+        summaryLine.textContent = `${done}/${total} done · ${running} running…`;
+      } else {
+        summaryLine.textContent = `${done}/${total} done · waiting for next step…`;
+      }
+    }
+
+    let pollTimer = null;
+    async function pollOnce(runId) {
+      try {
+        const [run, jobs] = await Promise.all([fetchRun(runId), fetchJobs(runId)]);
+        renderMeta(run);
+        renderJobs(jobs, run);
+        summariseJobs(jobs, run);
+        const finished = run && (run.status === "completed" || run.status === "completed_with_errors" || run.status === "failed");
+        if (finished) {
+          stopPolling();
+          progressSub.textContent = "Your report is ready.";
+        }
+      } catch (e) {
+        summaryLine.textContent = e.message;
+      }
+    }
+    function startPolling(runId) {
+      stopPolling();
+      pollOnce(runId);
+      pollTimer = setInterval(() => pollOnce(runId), 4000);
+    }
+    function stopPolling() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+
+    startForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setError("");
+      const code = $("practiceCode").value.trim().toUpperCase().replace(/\s+/g, "");
+      if (!/^[A-Z][0-9A-Z]{4,11}$/.test(code)) {
+        setError("That doesn't look like an ODS code. They start with a letter and are 5-7 characters, e.g. M83076.");
+        return;
+      }
+      startBtn.disabled = true;
+      startBtn.textContent = "Starting…";
+      try {
+        const res = await startReport(code);
+        setRunIdInHash(res.run_id);
+        showProgress();
+        startPolling(res.run_id);
+      } catch (err) {
+        setError(err.message || "Couldn't start the report.");
+      } finally {
+        startBtn.disabled = false;
+        startBtn.textContent = "Generate my report";
+      }
+    });
+
+    /* Resume on refresh if URL has a run id */
+    (function init() {
+      const existing = readRunIdFromHash();
+      if (existing) {
+        showProgress();
+        startPolling(existing);
+      }
+    })();
+  </script>
+</body>
+</html>
