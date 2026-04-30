@@ -1,4 +1,5 @@
-data/
+data/*
+!data/imd2019_staffs.json
 nhs_private.pem
 nhs_public.pem
 *.pem

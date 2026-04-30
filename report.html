@@ -214,6 +214,30 @@
 
     .hidden { display: none !important; }
 
+    /* ---- Results: deprivation card ---- */
+    .area-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .area-stat {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: var(--soft);
+    }
+    .area-stat .label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .area-stat .value { font-size: 1.5rem; font-weight: 700; margin-top: 2px; color: var(--ink); }
+    .area-stat .hint  { font-size: 0.78rem; margin-top: 4px; color: var(--muted); }
+    /* Decile colour scale: 1 = most deprived (red) .. 10 = least deprived (green) */
+    .dec-1, .dec-2 { border-left: 4px solid #b21a1a; }
+    .dec-3, .dec-4 { border-left: 4px solid #d97706; }
+    .dec-5, .dec-6 { border-left: 4px solid #ca8a04; }
+    .dec-7, .dec-8 { border-left: 4px solid #65a30d; }
+    .dec-9, .dec-10 { border-left: 4px solid #137a3a; }
+    .area-note { font-size: 0.85rem; color: var(--muted); margin-top: 14px; }
+
     @media (max-width: 600px) {
       .form-row { grid-template-columns: 1fr; }
       h1 { font-size: 1.55rem; }
@@ -253,6 +277,17 @@
       <div class="jobs" id="jobs"></div>
       <p class="footnote" id="footnote">
         You can leave this page open or come back later — your report keeps building either way.
+      </p>
+    </section>
+
+    <!-- RESULTS: Your area & deprivation -->
+    <section id="areaView" class="panel hidden">
+      <h2>Your area</h2>
+      <p class="sub" id="areaSub">Where your practice's neighbourhood sits relative to the rest of England (IoD2019).</p>
+      <div id="areaBody"></div>
+      <p class="area-note">
+        Decile 1 = most deprived 10% of small areas (LSOAs) nationally. Decile 10 = least deprived.
+        Source: <a href="https://www.gov.uk/government/statistics/english-indices-of-deprivation-2019" target="_blank" rel="noreferrer">English Indices of Deprivation 2019</a>.
       </p>
     </section>
   </main>
@@ -377,7 +412,86 @@
       }
     }
 
+    /* ---- IMD lookup (static JSON, served by GitHub Pages) ---- */
+    let _imdCache = null;
+    async function loadImdStaffs() {
+      if (_imdCache) return _imdCache;
+      const r = await fetch("data/imd2019_staffs.json");
+      if (!r.ok) throw new Error(`Couldn't load IMD reference (${r.status}).`);
+      _imdCache = await r.json();
+      return _imdCache;
+    }
+    async function fetchGeography(practiceCode) {
+      const headers = { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` };
+      const url = `${SUPABASE_URL}/rest/v1/gp_practice_geography?practice_code=eq.${encodeURIComponent(practiceCode)}&select=lsoa_code,lsoa,local_authority_district,postcode`;
+      const r = await fetch(url, { headers });
+      if (!r.ok) return null;
+      const arr = await r.json();
+      return arr[0] || null;
+    }
+    function decileTile(label, decile, suffix) {
+      if (decile == null) return "";
+      const cls = `dec-${Math.max(1, Math.min(10, Number(decile)))}`;
+      return `
+        <div class="area-stat ${cls}">
+          <div class="label">${escapeHtml(label)}</div>
+          <div class="value">${decile}<span style="font-size:0.7em;color:var(--muted);">/10</span></div>
+          <div class="hint">${escapeHtml(suffix || "")}</div>
+        </div>`;
+    }
+    async function renderAreaCard(practiceCode) {
+      const areaView = $("areaView");
+      const areaBody = $("areaBody");
+      try {
+        const geo = await fetchGeography(practiceCode);
+        if (!geo || !geo.lsoa_code) {
+          areaBody.innerHTML = `<p class="area-note">Geography lookup not available yet.</p>`;
+          areaView.classList.remove("hidden");
+          return;
+        }
+        const imd = await loadImdStaffs();
+        const lsoaRow = imd.lsoas[geo.lsoa_code];
+        if (!lsoaRow) {
+          areaBody.innerHTML = `
+            <p class="sub">
+              ${escapeHtml(geo.lsoa || geo.lsoa_code)} (${escapeHtml(geo.local_authority_district || "")})
+              isn't in our Staffordshire reference set yet — we publish detailed deprivation context for Staffordshire and Stoke-on-Trent practices today.
+              The rest of your report still works.
+            </p>`;
+          areaView.classList.remove("hidden");
+          return;
+        }
+        const summary = lsoaRow.imd_decile != null
+          ? `Your patient catchment (LSOA ${escapeHtml(lsoaRow.lsoa_name)}, ${escapeHtml(lsoaRow.lad_name)}) sits in decile <strong>${lsoaRow.imd_decile}</strong> of 10 nationally — ranked #${lsoaRow.imd_rank?.toLocaleString?.() || lsoaRow.imd_rank} of 32,844 LSOAs in England.`
+          : "";
+        const tiles = [
+          decileTile("Overall IMD", lsoaRow.imd_decile, "deprivation"),
+          decileTile("Income", lsoaRow.income_decile),
+          decileTile("Employment", lsoaRow.employment_decile),
+          decileTile("Health & disability", lsoaRow.health_decile),
+          decileTile("Education", lsoaRow.education_decile),
+          decileTile("Crime", lsoaRow.crime_decile),
+          decileTile("Living env.", lsoaRow.living_environment_decile),
+          decileTile("Children (IDACI)", lsoaRow.idaci_decile),
+          decileTile("Older people (IDAOPI)", lsoaRow.idaopi_decile)
+        ].join("");
+        const pop = lsoaRow.population_total
+          ? `<p class="area-note">LSOA population (mid-2015): <strong>${lsoaRow.population_total.toLocaleString()}</strong> — children 0–15: ${lsoaRow.population_children_0_15?.toLocaleString?.()}, working age 16–59: ${lsoaRow.population_working_16_59?.toLocaleString?.()}, 60+: ${lsoaRow.population_elderly_60plus?.toLocaleString?.()}.</p>`
+          : "";
+        areaBody.innerHTML = `
+          <p class="sub" style="margin-bottom:6px;">${summary}</p>
+          <div class="area-grid">${tiles}</div>
+          ${pop}
+        `;
+        areaView.classList.remove("hidden");
+      } catch (e) {
+        areaBody.innerHTML = `<p class="area-note">Couldn't render area context: ${escapeHtml(e.message)}</p>`;
+        areaView.classList.remove("hidden");
+      }
+    }
+
     let pollTimer = null;
+    let _areaRendered = false;
     async function pollOnce(runId) {
       try {
         const [run, jobs] = await Promise.all([fetchRun(runId), fetchJobs(runId)]);
@@ -388,6 +502,10 @@
         if (finished) {
           stopPolling();
           progressSub.textContent = "Your report is ready.";
+          if (!_areaRendered && run.practice_code) {
+            _areaRendered = true;
+            renderAreaCard(run.practice_code);
+          }
         }
       } catch (e) {
         summaryLine.textContent = e.message;
