@@ -5,6 +5,8 @@ data/*
 !data/nhs_payments_staffs.json
 !data/fft_staffs.json
 !data/appointments_staffs.json
+!data/fingertips_staffs.json
+!data/gp_earnings_national.json
 nhs_private.pem
 nhs_public.pem
 *.pem
