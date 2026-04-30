@@ -2,6 +2,9 @@ data/*
 !data/imd2019_staffs.json
 !data/cqc_directory_staffs.json
 !data/qof_staffs.json
+!data/nhs_payments_staffs.json
+!data/fft_staffs.json
+!data/appointments_staffs.json
 nhs_private.pem
 nhs_public.pem
 *.pem

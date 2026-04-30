@@ -454,6 +454,27 @@
       <div id="cqcBody"></div>
     </section>
 
+    <!-- RESULTS: NHS Payments -->
+    <section id="paymentsView" class="panel hidden">
+      <div class="head-row"><h2>Income &amp; NHS funding</h2><span class="pill" id="paymentsPill"></span></div>
+      <p class="sub">Per-practice NHS payments breakdown. Source: NHS Payments to General Practice 2024/25 (NHS Digital, March 2026).</p>
+      <div id="paymentsBody"></div>
+    </section>
+
+    <!-- RESULTS: Friends and Family Test -->
+    <section id="fftView" class="panel hidden">
+      <div class="head-row"><h2>Patient recommendation (FFT)</h2><span class="pill" id="fftPill"></span></div>
+      <p class="sub">Friends &amp; Family Test — would patients recommend this practice? Source: NHS England, monthly publication.</p>
+      <div id="fftBody"></div>
+    </section>
+
+    <!-- RESULTS: Appointments -->
+    <section id="apptView" class="panel hidden">
+      <div class="head-row"><h2>Appointments &amp; access</h2><span class="pill" id="apptPill"></span></div>
+      <p class="sub">Appointment volume, mode (face-to-face / phone / video / home visit), seen-by, and time-to-appointment. Source: NHS Digital "Appointments in General Practice" (monthly).</p>
+      <div id="apptBody"></div>
+    </section>
+
     <!-- RESULTS: QOF -->
     <section id="qofView" class="panel hidden">
       <div class="head-row"><h2>Clinical quality (QOF)</h2><span class="pill" id="qofPill"></span></div>
@@ -1079,8 +1100,285 @@
       }
     }
 
+    /* ---- NHS Payments ---- */
+    let _paymentsCache = null;
+    async function loadPayments() {
+      if (_paymentsCache) return _paymentsCache;
+      const r = await fetch("data/nhs_payments_staffs.json");
+      if (!r.ok) throw new Error(`Payments not available (${r.status})`);
+      _paymentsCache = await r.json();
+      return _paymentsCache;
+    }
+    async function renderPayments(practiceCode) {
+      const view = $("paymentsView"); const body = $("paymentsBody");
+      try {
+        const dat = await loadPayments();
+        const p = dat.practices[practiceCode];
+        if (!p) {
+          body.innerHTML = `<p class="area-note">No payments record for ${escapeHtml(practiceCode)} in 2024/25.</p>`;
+          $("paymentsPill").textContent = "Not in dataset";
+          view.classList.remove("hidden"); return;
+        }
+        const med = dat.benchmarks_staffs_median;
+        $("paymentsPill").textContent = `${dat.year} · ${gbp(p.total_payments_incl_covid_minus_deductions || 0)}`;
+        const fmtDelta = (v, m) => {
+          if (v == null || m == null) return "";
+          const d = v - m;
+          const pct = m ? (d / m * 100) : 0;
+          const cls = d >= 0 ? "up" : "down";
+          return `<div class="qof-bench ${cls}">${d >= 0 ? "+" : ""}${gbp(Math.round(d))} vs Staffs median ${gbp(m)}</div>`;
+        };
+        const headline = `
+          <div class="qof-headline">
+            <div class="area-stat">
+              <div class="label">Total NHS funding</div>
+              <div class="value" style="font-size:1.3rem;">${gbp(p.total_payments_incl_covid_minus_deductions || 0)}</div>
+              ${fmtDelta(p.total_payments_incl_covid_minus_deductions, med.total_payments_incl_covid_minus_deductions)}
+            </div>
+            <div class="area-stat">
+              <div class="label">£ per registered patient</div>
+              <div class="value" style="font-size:1.3rem;">${gbp(p.per_registered_incl_covid || 0)}</div>
+              <div class="hint">Staffs median ${gbp(med.per_registered_incl_covid || 0)}</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">£ per weighted patient</div>
+              <div class="value" style="font-size:1.3rem;">${gbp(p.per_weighted_incl_covid || 0)}</div>
+              <div class="hint">Staffs median ${gbp(med.per_weighted_incl_covid || 0)}</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">Registered patients</div>
+              <div class="value" style="font-size:1.3rem;">${int(p.registered_patients || 0)}</div>
+              <div class="hint">${p.contract_type || ""}${p.dispensing === "Yes" ? " · dispensing" : ""}</div>
+            </div>
+          </div>`;
+        const STREAMS = [
+          ["Global Sum",                    "global_sum"],
+          ["MPIG correction",               "mpig"],
+          ["Total QOF payments",            "qof"],
+          ["Premises payments",             "premises"],
+          ["PCN participation",             "pcn"],
+          ["Local incentive schemes",       "local_incentive"],
+          ["GP Extended Hours Access",      "extended_hours"],
+          ["Flu/Pneumococcal immunisations","flu"],
+          ["Childhood immunisations",       "childhood_immunisation"],
+          ["Prescribing fees",              "prescribing_fees"],
+          ["Dispensing fees",               "dispensing_fees"],
+          ["Drug reimbursement",            "drug_reimbursement"],
+          ["COVID immunisation",            "covid_immunisation"],
+          ["COVID support",                 "covid_support"],
+          ["Long COVID",                    "long_covid"],
+        ];
+        const total = p.total_payments_incl_covid_minus_deductions || 1;
+        const rows = STREAMS
+          .map(([lbl, k]) => ({ lbl, k, v: Number(p[k]) || 0, m: Number(med[k]) || 0 }))
+          .filter(r => r.v !== 0)
+          .sort((a, b) => b.v - a.v);
+        const tbl = `
+          <table class="table-simple">
+            <thead><tr><th>Income stream</th><th class="num">Practice</th><th class="num">% of total</th><th class="num">Staffs median</th></tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr>
+                <td>${escapeHtml(r.lbl)}</td>
+                <td class="num">${gbp(Math.round(r.v))}</td>
+                <td class="num">${(r.v/total*100).toFixed(1)}%</td>
+                <td class="num">${r.m ? gbp(Math.round(r.m)) : "—"}</td>
+              </tr>`).join("")}
+              <tr><td><strong>Total (incl. COVID, minus deductions)</strong></td><td class="num"><strong>${gbp(Math.round(total))}</strong></td><td class="num"><strong>100.0%</strong></td><td class="num"><strong>${gbp(Math.round(med.total_payments_incl_covid_minus_deductions || 0))}</strong></td></tr>
+            </tbody>
+          </table>`;
+        body.innerHTML = headline + tbl;
+        view.classList.remove("hidden");
+      } catch (e) {
+        body.innerHTML = `<p class="area-note">Couldn't load payments: ${escapeHtml(e.message)}</p>`;
+        view.classList.remove("hidden");
+      }
+    }
+
+    /* ---- FFT ---- */
+    let _fftCache = null;
+    async function loadFft() {
+      if (_fftCache) return _fftCache;
+      const r = await fetch("data/fft_staffs.json");
+      if (!r.ok) throw new Error(`FFT not available (${r.status})`);
+      _fftCache = await r.json();
+      return _fftCache;
+    }
+    async function renderFft(practiceCode) {
+      const view = $("fftView"); const body = $("fftBody");
+      try {
+        const dat = await loadFft();
+        const p = dat.practices[practiceCode];
+        if (!p) {
+          body.innerHTML = `<p class="area-note">${escapeHtml(practiceCode)} did not submit FFT data for ${escapeHtml(dat.month)} (or response volume was suppressed).</p>`;
+          $("fftPill").textContent = "Not submitted";
+          view.classList.remove("hidden"); return;
+        }
+        const pct = (p.percentage_positive || 0) * 100;
+        const neg = (p.percentage_negative || 0) * 100;
+        const med = (dat.benchmarks_staffs_median.percentage_positive_median || 0) * 100;
+        const delta = pct - med;
+        $("fftPill").textContent = `${dat.month} · ${pct.toFixed(0)}% positive`;
+        // Stacked bar
+        const total = (p.very_good||0) + (p.good||0) + (p.neither||0) + (p.poor||0) + (p.very_poor||0) + (p.dont_know||0);
+        const seg = (n, c, lbl) => {
+          if (!n) return "";
+          const w = (n / total * 100).toFixed(2);
+          return `<span title="${escapeHtml(lbl)}: ${n}" style="background:${c}; width:${w}%; display:inline-block; height:100%;"></span>`;
+        };
+        const bar = `
+          <div style="display:flex; height:24px; border-radius:6px; overflow:hidden; margin:6px 0 10px; border:1px solid var(--line);">
+            ${seg(p.very_good, "#137a3a", "Very good")}
+            ${seg(p.good,      "#65a30d", "Good")}
+            ${seg(p.neither,   "#cbd5e1", "Neither")}
+            ${seg(p.poor,      "#f59e0b", "Poor")}
+            ${seg(p.very_poor, "#b21a1a", "Very poor")}
+            ${seg(p.dont_know, "#94a3b8", "Don't know")}
+          </div>
+          <div style="display:flex; gap:14px; font-size:0.78rem; color:var(--muted); flex-wrap:wrap;">
+            <span><span style="display:inline-block;width:10px;height:10px;background:#137a3a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Very good ${int(p.very_good||0)}</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#65a30d;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Good ${int(p.good||0)}</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#cbd5e1;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Neither ${int(p.neither||0)}</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Poor ${int(p.poor||0)}</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#b21a1a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Very poor ${int(p.very_poor||0)}</span>
+          </div>`;
+        const headline = `
+          <div class="qof-headline">
+            <div class="area-stat">
+              <div class="label">% Recommend</div>
+              <div class="value">${pct.toFixed(1)}%</div>
+              <div class="qof-bench ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "+" : ""}${delta.toFixed(1)}pp vs Staffs median ${med.toFixed(1)}%</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">% Don't recommend</div>
+              <div class="value">${neg.toFixed(1)}%</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">Total responses</div>
+              <div class="value">${int(p.total_responses || 0)}</div>
+              <div class="hint">Staffs median ${int(dat.benchmarks_staffs_median.total_responses_median || 0)}</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">List size (FFT basis)</div>
+              <div class="value">${int(p.list_size || 0)}</div>
+            </div>
+          </div>
+          ${bar}`;
+        body.innerHTML = headline;
+        view.classList.remove("hidden");
+      } catch (e) {
+        body.innerHTML = `<p class="area-note">Couldn't load FFT: ${escapeHtml(e.message)}</p>`;
+        view.classList.remove("hidden");
+      }
+    }
+
+    /* ---- Appointments ---- */
+    let _apptCache = null;
+    async function loadAppt() {
+      if (_apptCache) return _apptCache;
+      const r = await fetch("data/appointments_staffs.json");
+      if (!r.ok) throw new Error(`Appointments not available (${r.status})`);
+      _apptCache = await r.json();
+      return _apptCache;
+    }
+    function fmtMonth(m) {
+      const [y, mm] = m.split("-");
+      return new Date(Date.UTC(+y, +mm - 1, 1)).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    }
+    async function renderAppt(practiceCode) {
+      const view = $("apptView"); const body = $("apptBody");
+      try {
+        const dat = await loadAppt();
+        const p = dat.practices[practiceCode];
+        if (!p) {
+          body.innerHTML = `<p class="area-note">No appointments data for ${escapeHtml(practiceCode)} in our 3-month window.</p>`;
+          $("apptPill").textContent = "Not in dataset";
+          view.classList.remove("hidden"); return;
+        }
+        const months = dat.months_included;
+        const totals = months.map(m => p[m]?.total || 0);
+        const sum = totals.reduce((a, b) => a + b, 0);
+        const avg = Math.round(sum / months.length);
+        $("apptPill").textContent = `${avg.toLocaleString()} per month avg`;
+
+        // Month-over-month bar
+        const peak = Math.max(...totals, 1);
+        const monthBars = months.map((m, i) => {
+          const med = dat.benchmarks_staffs_median.appointments_total_median_by_month[m];
+          const w = (totals[i] / peak * 100).toFixed(1);
+          return `
+            <div style="display:grid; grid-template-columns: 110px 1fr 90px; gap:10px; align-items:center; padding:6px 0;">
+              <span style="color:var(--muted); font-size:0.85rem;">${fmtMonth(m)}</span>
+              <div style="position:relative; height:14px; background:var(--soft); border-radius:999px;">
+                <div style="position:absolute; left:0; top:0; bottom:0; width:${w}%; background:linear-gradient(90deg,#3b82f6,#06b6d4); border-radius:999px;"></div>
+              </div>
+              <span style="text-align:right; font-variant-numeric: tabular-nums; font-weight:600;">${int(totals[i])}<span style="color:var(--muted); font-size:0.78rem; font-weight:400; margin-left:6px;">vs ${int(med || 0)}</span></span>
+            </div>`;
+        }).join("");
+
+        // Aggregate breakdowns across the 3 months
+        const agg = (key) => {
+          const out = {};
+          months.forEach(m => {
+            const slot = p[m]?.[key];
+            if (!slot) return;
+            for (const [k, v] of Object.entries(slot)) out[k] = (out[k] || 0) + v;
+          });
+          return out;
+        };
+        const byMode = agg("by_mode"), byHcp = agg("by_hcp"), byWait = agg("by_wait"), byStatus = agg("by_status");
+        const renderBreakdown = (obj, total) => {
+          const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+          return entries.map(([k, v]) => {
+            const w = (v / total * 100).toFixed(1);
+            return `<div style="display:grid; grid-template-columns: 1fr 60px 60px; gap:10px; padding:4px 0; align-items:center; font-size:0.85rem;">
+              <span>${escapeHtml(k || "Unknown")}</span>
+              <span style="text-align:right; font-variant-numeric:tabular-nums;">${int(v)}</span>
+              <span style="text-align:right; color:var(--muted); font-variant-numeric:tabular-nums;">${w}%</span>
+            </div>`;
+          }).join("");
+        };
+        const summary = `
+          <div class="qof-headline">
+            <div class="area-stat">
+              <div class="label">Total appointments (3 mo.)</div>
+              <div class="value">${int(sum)}</div>
+              <div class="hint">${months.length} months</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">Monthly average</div>
+              <div class="value">${int(avg)}</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">Latest month</div>
+              <div class="value">${int(p[months[months.length-1]]?.total || 0)}</div>
+              <div class="hint">${fmtMonth(months[months.length-1])}</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">Months covered</div>
+              <div class="value" style="font-size:1rem;">${months.map(fmtMonth).join(" · ")}</div>
+            </div>
+          </div>
+          <h3 style="margin:16px 0 4px; font-size:1rem;">Appointments by month (vs Staffs median)</h3>
+          ${monthBars}
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-top:18px;">
+            <div><h3 style="font-size:0.95rem; margin:0 0 4px;">By mode</h3>${renderBreakdown(byMode, sum)}</div>
+            <div><h3 style="font-size:0.95rem; margin:0 0 4px;">By professional</h3>${renderBreakdown(byHcp, sum)}</div>
+            <div><h3 style="font-size:0.95rem; margin:0 0 4px;">By time-to-appt</h3>${renderBreakdown(byWait, sum)}</div>
+            <div><h3 style="font-size:0.95rem; margin:0 0 4px;">By status</h3>${renderBreakdown(byStatus, sum)}</div>
+          </div>`;
+        body.innerHTML = summary;
+        view.classList.remove("hidden");
+      } catch (e) {
+        body.innerHTML = `<p class="area-note">Couldn't load appointments: ${escapeHtml(e.message)}</p>`;
+        view.classList.remove("hidden");
+      }
+    }
+
     function renderAllResults(practiceCode) {
       renderCqc(practiceCode);
+      renderPayments(practiceCode);
+      renderFft(practiceCode);
+      renderAppt(practiceCode);
       renderQof(practiceCode);
       renderAreaCard(practiceCode);
       renderPatients(practiceCode);
