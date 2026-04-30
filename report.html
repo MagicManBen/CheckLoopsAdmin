@@ -271,6 +271,31 @@
     }
     .pyramid-legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 
+    /* CQC rating badge */
+    .cqc-headline { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 8px 0 14px; }
+    .cqc-rating-badge {
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.02em;
+      color: #fff;
+    }
+    .cqc-rating-Outstanding         { background: #6b21a8; }
+    .cqc-rating-Good                { background: #137a3a; }
+    .cqc-rating-Requires-improvement{ background: #b45309; }
+    .cqc-rating-Inadequate          { background: #b21a1a; }
+    .cqc-rating-Not-Rated, .cqc-rating-No-rating { background: #64748b; }
+    .cqc-meta { color: var(--muted); font-size: 0.92rem; }
+    .cqc-meta strong { color: var(--ink); }
+    .cqc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .cqc-tag {
+      background: var(--soft); border: 1px solid var(--line);
+      border-radius: 999px; padding: 3px 10px;
+      font-size: 0.78rem; color: var(--ink-soft);
+    }
+
     /* Workforce + prescribing tables */
     .table-simple { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 10px; }
     .table-simple th, .table-simple td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
@@ -337,6 +362,13 @@
         Decile 1 = most deprived 10% of small areas (LSOAs) nationally. Decile 10 = least deprived.
         Source: <a href="https://www.gov.uk/government/statistics/english-indices-of-deprivation-2019" target="_blank" rel="noreferrer">English Indices of Deprivation 2019</a>.
       </p>
+    </section>
+
+    <!-- RESULTS: CQC -->
+    <section id="cqcView" class="panel hidden">
+      <div class="head-row"><h2>CQC regulatory profile</h2><span class="pill" id="cqcPill"></span></div>
+      <p class="sub">Latest published rating, registered activities and provider details. Source: CQC Care Directory (HSCA Active Locations, monthly).</p>
+      <div id="cqcBody"></div>
     </section>
 
     <!-- RESULTS: Patient list -->
@@ -759,7 +791,65 @@
       }
     }
 
+    /* ---- CQC profile (static directory JSON) ---- */
+    let _cqcCache = null;
+    async function loadCqc() {
+      if (_cqcCache) return _cqcCache;
+      const r = await fetch("data/cqc_directory_staffs.json");
+      if (!r.ok) throw new Error(`CQC directory not available (${r.status})`);
+      _cqcCache = await r.json();
+      return _cqcCache;
+    }
+    async function renderCqc(practiceCode) {
+      const view = $("cqcView");
+      const body = $("cqcBody");
+      try {
+        const dir = await loadCqc();
+        const p = dir.practices[practiceCode];
+        if (!p) {
+          body.innerHTML = `<p class="area-note">No CQC entry found for ${escapeHtml(practiceCode)} in our Staffordshire/Stoke reference directory.</p>`;
+          $("cqcPill").textContent = "Not found";
+          view.classList.remove("hidden");
+          return;
+        }
+        const rating = p["Location Latest Overall Rating"] || "Not Rated";
+        const ratingClass = "cqc-rating-" + rating.replace(/\s+/g, "-");
+        const pubDate = p["Publication Date"] || "";
+        const since = p["Location HSCA start date"] || "";
+        $("cqcPill").textContent = rating;
+
+        const tags = (arr, label) => arr && arr.length
+          ? `<div style="margin-top:14px;"><div class="label" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);">${label}</div><div class="cqc-tags">${arr.map(a => `<span class="cqc-tag">${escapeHtml(a)}</span>`).join("")}</div></div>`
+          : "";
+
+        const meta = `
+          <div class="cqc-headline">
+            <span class="cqc-rating-badge ${ratingClass}">${escapeHtml(rating)}</span>
+            <div class="cqc-meta">
+              ${pubDate ? `Last published <strong>${escapeHtml(pubDate)}</strong>` : ""}
+              ${since ? ` · Registered since <strong>${escapeHtml(since)}</strong>` : ""}
+            </div>
+          </div>
+          <div class="area-grid">
+            <div class="area-stat"><div class="label">Location</div><div class="value" style="font-size:1rem;">${escapeHtml(p["Location Name"] || "")}</div><div class="hint">${escapeHtml(p["Location Postal Code"] || "")}</div></div>
+            <div class="area-stat"><div class="label">Provider</div><div class="value" style="font-size:1rem;">${escapeHtml(p["Provider Name"] || "")}</div><div class="hint">${escapeHtml(p["Provider Ownership Type"] || "")}</div></div>
+            <div class="area-stat"><div class="label">Registered manager</div><div class="value" style="font-size:1rem;">${escapeHtml(p["Registered manager"] || "—")}</div></div>
+            <div class="area-stat"><div class="label">Telephone</div><div class="value" style="font-size:1rem;">${escapeHtml(p["Location Telephone Number"] || "—")}</div></div>
+          </div>
+          ${tags(p.regulated_activities, "Regulated activities")}
+          ${tags(p.service_types, "Service types")}
+          <p class="area-note" style="margin-top:18px;">CQC Location ID: <code>${escapeHtml(p["Location ID"] || "")}</code> · Provider ID: <code>${escapeHtml(p["Provider ID"] || "")}</code></p>
+        `;
+        body.innerHTML = meta;
+        view.classList.remove("hidden");
+      } catch (e) {
+        body.innerHTML = `<p class="area-note">Couldn't load CQC profile: ${escapeHtml(e.message)}</p>`;
+        view.classList.remove("hidden");
+      }
+    }
+
     function renderAllResults(practiceCode) {
+      renderCqc(practiceCode);
       renderAreaCard(practiceCode);
       renderPatients(practiceCode);
       renderWorkforce(practiceCode);
