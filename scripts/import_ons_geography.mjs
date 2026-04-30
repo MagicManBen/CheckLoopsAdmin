@@ -107,9 +107,11 @@ async function main() {
     nhs_ha: result.nhs_ha || null,
     nhs_ha_code: codes.nhs_ha || null,
     lsoa: result.lsoa || null,
-    lsoa_code: codes.lsoa || null,
+    // Store the 2011 LSOA code (LSOA11CD) so we can JOIN to imd_lsoa_metrics
+    // (IoD2019 uses 2011 LSOA boundaries; codes.lsoa is the 2021 boundary code)
+    lsoa_code: codes.lsoa11 || codes.lsoa || null,
     msoa: result.msoa || null,
-    msoa_code: codes.msoa || null,
+    msoa_code: codes.msoa11 || codes.msoa || null,
     oa_code: codes.oa || null,
     latitude: typeof result.latitude === "number" ? result.latitude : null,
     longitude: typeof result.longitude === "number" ? result.longitude : null,
