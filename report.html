@@ -214,7 +214,7 @@
 
     .hidden { display: none !important; }
 
-    /* ---- Results: deprivation card ---- */
+    /* ---- Results: shared ---- */
     .area-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -237,6 +237,54 @@
     .dec-7, .dec-8 { border-left: 4px solid #65a30d; }
     .dec-9, .dec-10 { border-left: 4px solid #137a3a; }
     .area-note { font-size: 0.85rem; color: var(--muted); margin-top: 14px; }
+
+    /* Population pyramid */
+    .pyramid-wrap { margin-top: 16px; }
+    .pyramid-row {
+      display: grid;
+      grid-template-columns: 50px 1fr 50px 1fr 50px;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      line-height: 1.6;
+    }
+    .pyramid-row .age { text-align: center; color: var(--muted); }
+    .pyramid-row .bar-l, .pyramid-row .bar-r {
+      height: 10px;
+      border-radius: 3px;
+    }
+    .pyramid-row .bar-l { background: #6390f7; justify-self: end; }
+    .pyramid-row .bar-r { background: #f06aa3; justify-self: start; }
+    .pyramid-row .count {
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+    .pyramid-row .count.l { text-align: right; }
+    .pyramid-row .count.r { text-align: left; }
+    .pyramid-legend {
+      display: flex; gap: 20px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 6px;
+      justify-content: center;
+    }
+    .pyramid-legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+    /* Workforce + prescribing tables */
+    .table-simple { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 10px; }
+    .table-simple th, .table-simple td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+    .table-simple th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; }
+    .table-simple td.num, .table-simple th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .table-simple tr:last-child td { border-bottom: 0; }
+
+    .head-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    .head-row h2 { margin: 0; }
+    .head-row .pill {
+      background: #eff4fe; color: #1d4ed8;
+      border-radius: 999px; padding: 4px 10px;
+      font-size: 0.8rem; font-weight: 600;
+    }
 
     @media (max-width: 600px) {
       .form-row { grid-template-columns: 1fr; }
@@ -289,6 +337,34 @@
         Decile 1 = most deprived 10% of small areas (LSOAs) nationally. Decile 10 = least deprived.
         Source: <a href="https://www.gov.uk/government/statistics/english-indices-of-deprivation-2019" target="_blank" rel="noreferrer">English Indices of Deprivation 2019</a>.
       </p>
+    </section>
+
+    <!-- RESULTS: Patient list -->
+    <section id="patientsView" class="panel hidden">
+      <div class="head-row"><h2>Your patient list</h2><span class="pill" id="patientsPill"></span></div>
+      <p class="sub">Registered patients by age and sex. Source: NHS Digital "Patients Registered at a GP Practice" extract.</p>
+      <div id="patientsBody"></div>
+    </section>
+
+    <!-- RESULTS: Workforce -->
+    <section id="workforceView" class="panel hidden">
+      <div class="head-row"><h2>Your workforce</h2><span class="pill" id="workforcePill"></span></div>
+      <p class="sub">Headcount and full-time equivalents by staff group. Source: NHS Digital General Practice Workforce, March 2026 snapshot.</p>
+      <div id="workforceBody"></div>
+    </section>
+
+    <!-- RESULTS: Prescribing -->
+    <section id="rxView" class="panel hidden">
+      <div class="head-row"><h2>Prescribing</h2><span class="pill" id="rxPill"></span></div>
+      <p class="sub">Prescribing volume and cost by BNF chapter. Source: NHSBSA English Prescribing Dataset.</p>
+      <div id="rxBody"></div>
+    </section>
+
+    <!-- RESULTS: Patient survey -->
+    <section id="surveyView" class="panel hidden">
+      <div class="head-row"><h2>Patient survey</h2><span class="pill" id="surveyPill"></span></div>
+      <p class="sub">GP Patient Survey 2025 — over 1,000 detailed metrics imported. Headline numbers shown below; the full set is available in the underlying database for richer report sections.</p>
+      <div id="surveyBody"></div>
     </section>
   </main>
 
@@ -490,8 +566,209 @@
       }
     }
 
+    /* ---- Supabase REST helpers for results ---- */
+    const supaHeaders = () => ({ apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` });
+    async function supaSelect(table, query) {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, { headers: supaHeaders() });
+      if (!r.ok) throw new Error(`${table} fetch failed (${r.status})`);
+      return r.json();
+    }
+    function gbp(n) { return "£" + Number(n).toLocaleString("en-GB", { maximumFractionDigits: 0 }); }
+    function int(n) { return Number(n).toLocaleString("en-GB", { maximumFractionDigits: 0 }); }
+
+    /* ---- Patient list (age × sex pyramid) ---- */
+    async function renderPatients(practiceCode) {
+      try {
+        const rows = await supaSelect(
+          "gp_practice_patient_age_counts",
+          `practice_code=eq.${encodeURIComponent(practiceCode)}&select=sex,age,number_of_patients&limit=1000`
+        );
+        if (!rows.length) return;
+        // age column may include "ALL" / "95+" / numbers
+        const byAge = {}; // age -> {male, female, all}
+        let totalMale = 0, totalFemale = 0;
+        for (const r of rows) {
+          const a = String(r.age).trim();
+          const n = Number(r.number_of_patients) || 0;
+          const sex = (r.sex || "").toUpperCase();
+          if (!byAge[a]) byAge[a] = { male: 0, female: 0 };
+          if (sex.startsWith("M")) { byAge[a].male = n; totalMale += a === "ALL" ? 0 : n; }
+          else if (sex.startsWith("F")) { byAge[a].female = n; totalFemale += a === "ALL" ? 0 : n; }
+        }
+        const list = Object.keys(byAge)
+          .filter(a => a !== "ALL")
+          .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+        const total = totalMale + totalFemale;
+        $("patientsPill").textContent = `${int(total)} registered`;
+
+        // Bucket into 5-year age bands for the pyramid
+        const bands = [];
+        for (let lo = 0; lo < 100; lo += 5) {
+          const hi = lo + 4;
+          let m = 0, f = 0;
+          for (const a of list) {
+            const ai = parseInt(a, 10);
+            if (Number.isFinite(ai) && ai >= lo && ai <= hi) { m += byAge[a].male || 0; f += byAge[a].female || 0; }
+          }
+          // Catch 95+ if present
+          if (lo === 95) {
+            for (const a of list) {
+              const isPlus = a.endsWith("+") || parseInt(a, 10) >= 95;
+              if (isPlus) { /* already counted in numeric range above if 95-99 */ }
+            }
+          }
+          bands.push({ label: `${lo}-${hi}`, m, f });
+        }
+        const peak = Math.max(1, ...bands.map(b => Math.max(b.m, b.f)));
+        const rowsHtml = bands.slice().reverse().map(b => `
+          <div class="pyramid-row">
+            <span class="count l">${b.m ? int(b.m) : ""}</span>
+            <span class="bar-l" style="width:${(b.m/peak*100).toFixed(1)}%"></span>
+            <span class="age">${b.label}</span>
+            <span class="bar-r" style="width:${(b.f/peak*100).toFixed(1)}%"></span>
+            <span class="count r">${b.f ? int(b.f) : ""}</span>
+          </div>
+        `).join("");
+
+        const grid = `
+          <div class="area-grid">
+            <div class="area-stat"><div class="label">Total registered</div><div class="value">${int(total)}</div></div>
+            <div class="area-stat"><div class="label">Male</div><div class="value">${int(totalMale)}</div><div class="hint">${total ? Math.round(totalMale/total*100) : 0}%</div></div>
+            <div class="area-stat"><div class="label">Female</div><div class="value">${int(totalFemale)}</div><div class="hint">${total ? Math.round(totalFemale/total*100) : 0}%</div></div>
+          </div>
+          <div class="pyramid-wrap">
+            <div class="pyramid-legend">
+              <span><span class="swatch" style="background:#6390f7"></span>Male</span>
+              <span><span class="swatch" style="background:#f06aa3"></span>Female</span>
+            </div>
+            ${rowsHtml}
+          </div>`;
+        $("patientsBody").innerHTML = grid;
+        $("patientsView").classList.remove("hidden");
+      } catch (e) {
+        $("patientsBody").innerHTML = `<p class="area-note">Couldn't load patient list: ${escapeHtml(e.message)}</p>`;
+        $("patientsView").classList.remove("hidden");
+      }
+    }
+
+    /* ---- Workforce ---- */
+    async function renderWorkforce(practiceCode) {
+      try {
+        const rows = await supaSelect(
+          "gp_practice_workforce_metrics",
+          `practice_code=eq.${encodeURIComponent(practiceCode)}&select=staff_group,detailed_staff_role,measure,value&limit=1000`
+        );
+        if (!rows.length) return;
+        // staff_group totals
+        const groups = {}; // staff_group -> { fte, headcount }
+        let totalFte = 0, totalHc = 0;
+        for (const r of rows) {
+          if (!r.staff_group) continue;
+          if (r.detailed_staff_role !== "Total") continue;
+          const v = Number(r.value) || 0;
+          if (!groups[r.staff_group]) groups[r.staff_group] = { fte: 0, hc: 0 };
+          if (r.measure === "FTE") { groups[r.staff_group].fte = v; totalFte += v; }
+          if (r.measure === "Headcount") { groups[r.staff_group].hc = v; totalHc += v; }
+        }
+        $("workforcePill").textContent = `${totalFte.toFixed(1)} FTE · ${int(totalHc)} headcount`;
+        const tbl = `
+          <table class="table-simple">
+            <thead><tr><th>Staff group</th><th class="num">Headcount</th><th class="num">FTE</th></tr></thead>
+            <tbody>
+              ${Object.entries(groups).sort((a,b)=>b[1].fte-a[1].fte).map(([g, v]) => `
+                <tr><td>${escapeHtml(g)}</td><td class="num">${int(v.hc)}</td><td class="num">${v.fte.toFixed(2)}</td></tr>
+              `).join("")}
+              <tr><td><strong>Total</strong></td><td class="num"><strong>${int(totalHc)}</strong></td><td class="num"><strong>${totalFte.toFixed(2)}</strong></td></tr>
+            </tbody>
+          </table>`;
+        $("workforceBody").innerHTML = tbl;
+        $("workforceView").classList.remove("hidden");
+      } catch (e) {
+        $("workforceBody").innerHTML = `<p class="area-note">Couldn't load workforce: ${escapeHtml(e.message)}</p>`;
+        $("workforceView").classList.remove("hidden");
+      }
+    }
+
+    /* ---- Prescribing top chapters by cost ---- */
+    async function renderPrescribing(practiceCode) {
+      try {
+        const rows = await supaSelect(
+          "gp_practice_prescribing_summary",
+          `practice_code=eq.${encodeURIComponent(practiceCode)}&metric_key=in.(ITEMS,ACTUAL_COST_GBP)&select=year_month,bnf_chapter,bnf_chapter_name,metric_key,metric_value&limit=500`
+        );
+        if (!rows.length) return;
+        const byCh = {}; // chapter -> { name, items, cost }
+        for (const r of rows) {
+          const k = r.bnf_chapter;
+          if (!byCh[k]) byCh[k] = { name: r.bnf_chapter_name || k, items: 0, cost: 0 };
+          if (r.metric_key === "ITEMS") byCh[k].items = Number(r.metric_value) || 0;
+          if (r.metric_key === "ACTUAL_COST_GBP") byCh[k].cost = Number(r.metric_value) || 0;
+        }
+        const all = byCh["ALL"];
+        const yearMonth = rows[0]?.year_month;
+        $("rxPill").textContent = `${yearMonth ? new Date(yearMonth).toLocaleDateString("en-GB",{month:"long",year:"numeric"}) : ""} · ${all ? gbp(all.cost) : ""}`;
+        const list = Object.entries(byCh)
+          .filter(([k]) => k !== "ALL")
+          .map(([k,v]) => ({ chapter: k, ...v }))
+          .sort((a,b) => b.cost - a.cost)
+          .slice(0, 12);
+        const tbl = `
+          <table class="table-simple">
+            <thead><tr><th>BNF chapter</th><th class="num">Items</th><th class="num">Actual cost</th></tr></thead>
+            <tbody>
+              ${list.map(c => `
+                <tr><td>${escapeHtml(c.chapter)} — ${escapeHtml(c.name)}</td><td class="num">${int(c.items)}</td><td class="num">${gbp(c.cost)}</td></tr>
+              `).join("")}
+              ${all ? `<tr><td><strong>All chapters</strong></td><td class="num"><strong>${int(all.items)}</strong></td><td class="num"><strong>${gbp(all.cost)}</strong></td></tr>` : ""}
+            </tbody>
+          </table>`;
+        $("rxBody").innerHTML = tbl;
+        $("rxView").classList.remove("hidden");
+      } catch (e) {
+        $("rxBody").innerHTML = `<p class="area-note">Couldn't load prescribing: ${escapeHtml(e.message)}</p>`;
+        $("rxView").classList.remove("hidden");
+      }
+    }
+
+    /* ---- Patient survey: just count + a sample ---- */
+    async function renderSurvey(practiceCode) {
+      try {
+        const rows = await supaSelect(
+          "gp_practice_patient_survey_metrics",
+          `practice_code=eq.${encodeURIComponent(practiceCode)}&select=metric_key,metric_value,response_rate,distributed,received&limit=2000`
+        );
+        if (!rows.length) return;
+        const dist = rows[0]?.distributed;
+        const recv = rows[0]?.received;
+        const rr = rows[0]?.response_rate;
+        $("surveyPill").textContent = `${int(rows.length)} metrics`;
+        const headlineKeys = ["Q28_1.pct","Q28_2.pct","Q1.pct_1","Q1.pct_2"];
+        const sampled = rows.filter(r => headlineKeys.some(k => (r.metric_key||"").toLowerCase().startsWith(k.toLowerCase()))).slice(0, 6);
+        const stats = `
+          <div class="area-grid">
+            <div class="area-stat"><div class="label">Surveys distributed</div><div class="value">${dist ? int(dist) : "—"}</div></div>
+            <div class="area-stat"><div class="label">Returned</div><div class="value">${recv ? int(recv) : "—"}</div></div>
+            <div class="area-stat"><div class="label">Response rate</div><div class="value">${rr ? Math.round(Number(rr)*100) + "%" : "—"}</div></div>
+            <div class="area-stat"><div class="label">Metrics imported</div><div class="value">${int(rows.length)}</div></div>
+          </div>`;
+        $("surveyBody").innerHTML = stats;
+        $("surveyView").classList.remove("hidden");
+      } catch (e) {
+        $("surveyBody").innerHTML = `<p class="area-note">Couldn't load survey: ${escapeHtml(e.message)}</p>`;
+        $("surveyView").classList.remove("hidden");
+      }
+    }
+
+    function renderAllResults(practiceCode) {
+      renderAreaCard(practiceCode);
+      renderPatients(practiceCode);
+      renderWorkforce(practiceCode);
+      renderPrescribing(practiceCode);
+      renderSurvey(practiceCode);
+    }
+
     let pollTimer = null;
-    let _areaRendered = false;
+    let _resultsRendered = false;
     async function pollOnce(runId) {
       try {
         const [run, jobs] = await Promise.all([fetchRun(runId), fetchJobs(runId)]);
@@ -501,10 +778,15 @@
         const finished = run && (run.status === "completed" || run.status === "completed_with_errors" || run.status === "failed");
         if (finished) {
           stopPolling();
-          progressSub.textContent = "Your report is ready.";
-          if (!_areaRendered && run.practice_code) {
-            _areaRendered = true;
-            renderAreaCard(run.practice_code);
+          progressSub.textContent = "Your report is ready — scroll down to view it.";
+          if (!_resultsRendered && run.practice_code) {
+            _resultsRendered = true;
+            renderAllResults(run.practice_code);
+            // Smooth-scroll to the first result panel after a tick
+            setTimeout(() => {
+              const target = document.getElementById("areaView");
+              if (target && !target.classList.contains("hidden")) target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 400);
           }
         }
       } catch (e) {
