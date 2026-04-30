@@ -271,6 +271,54 @@
     }
     .pyramid-legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 
+    /* QOF panel */
+    .qof-headline {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;
+      margin: 8px 0 16px;
+    }
+    .qof-bench {
+      font-size: 0.78rem; color: var(--muted); margin-top: 4px;
+    }
+    .qof-bench.up   { color: #137a3a; }
+    .qof-bench.down { color: #b21a1a; }
+
+    .qof-prev-row {
+      display: grid;
+      grid-template-columns: 1.6fr 70px 1fr 70px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+    .qof-prev-row:last-child { border-bottom: 0; }
+    .qof-prev-row .gname { font-weight: 600; }
+    .qof-prev-row .reg { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; font-size: 0.82rem; }
+    .qof-prev-row .bar {
+      position: relative; height: 8px; border-radius: 999px; background: var(--soft); overflow: visible;
+    }
+    .qof-prev-row .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #3b82f6, #06b6d4); border-radius: 999px; }
+    .qof-prev-row .bar .median {
+      position: absolute; top: -3px; bottom: -3px; width: 2px; background: #475569;
+    }
+    .qof-prev-row .pct { font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
+
+    .qof-list { margin-top: 8px; }
+    .qof-list .item {
+      display: grid;
+      grid-template-columns: 70px 1fr 70px;
+      gap: 10px; align-items: start;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.88rem;
+    }
+    .qof-list .item:last-child { border-bottom: 0; }
+    .qof-list .item .code { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; color: var(--muted); }
+    .qof-list .item .desc { color: var(--ink-soft); }
+    .qof-list .item .delta { font-variant-numeric: tabular-nums; text-align: right; font-weight: 700; }
+    .qof-list .item .delta.up   { color: #137a3a; }
+    .qof-list .item .delta.down { color: #b21a1a; }
+
     /* CQC rating badge */
     .cqc-headline { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 8px 0 14px; }
     .cqc-rating-badge {
@@ -404,6 +452,13 @@
       <div class="head-row"><h2>CQC regulatory profile</h2><span class="pill" id="cqcPill"></span></div>
       <p class="sub">Latest published rating, registered activities and provider details. Source: CQC Care Directory (HSCA Active Locations, monthly).</p>
       <div id="cqcBody"></div>
+    </section>
+
+    <!-- RESULTS: QOF -->
+    <section id="qofView" class="panel hidden">
+      <div class="head-row"><h2>Clinical quality (QOF)</h2><span class="pill" id="qofPill"></span></div>
+      <p class="sub">Quality and Outcomes Framework achievement, disease prevalence and indicator-level performance — benchmarked against the median of all Staffs/Stoke practices. Source: NHS Digital QOF 2024-25.</p>
+      <div id="qofBody"></div>
     </section>
 
     <!-- RESULTS: Patient list -->
@@ -897,8 +952,136 @@
       }
     }
 
+    /* ---- QOF (static JSON) ---- */
+    let _qofCache = null;
+    async function loadQof() {
+      if (_qofCache) return _qofCache;
+      const r = await fetch("data/qof_staffs.json");
+      if (!r.ok) throw new Error(`QOF data not available (${r.status})`);
+      _qofCache = await r.json();
+      return _qofCache;
+    }
+    function deltaPp(value, median) {
+      if (value == null || median == null) return null;
+      return Math.round((value - median) * 10) / 10;
+    }
+    async function renderQof(practiceCode) {
+      const view = $("qofView");
+      const body = $("qofBody");
+      try {
+        const qof = await loadQof();
+        const p = qof.practices[practiceCode];
+        if (!p) {
+          body.innerHTML = `<p class="area-note">No QOF data for ${escapeHtml(practiceCode)} in our Staffordshire/Stoke reference set (could be a brand-new practice not yet reporting).</p>`;
+          $("qofPill").textContent = "Not in dataset";
+          view.classList.remove("hidden");
+          return;
+        }
+        $("qofPill").textContent = `${qof.year}`;
+
+        const benchAch = qof.benchmarks_staffs.achievement_pct_median;
+        const dAch = deltaPp(p.achievement_pct, benchAch);
+        const dAchHtml = dAch == null ? "" : (dAch >= 0
+          ? `<div class="qof-bench up">+${dAch.toFixed(1)}pp vs Staffs median ${benchAch}%</div>`
+          : `<div class="qof-bench down">${dAch.toFixed(1)}pp vs Staffs median ${benchAch}%</div>`);
+
+        // List size from the TOTAL prevalence row
+        const totalRow = Object.values(p.registers || {}).find(r => r.patient_list_type === "TOTAL");
+        const listSize = totalRow ? totalRow.list_size_for_calc : null;
+
+        const headline = `
+          <div class="qof-headline">
+            <div class="area-stat">
+              <div class="label">QOF achievement</div>
+              <div class="value">${p.achievement_pct ?? "—"}%</div>
+              ${dAchHtml}
+            </div>
+            <div class="area-stat">
+              <div class="label">Points achieved</div>
+              <div class="value">${p.achieved_points?.toLocaleString?.("en-GB", { maximumFractionDigits: 1 }) || "—"}</div>
+              <div class="hint">of ${p.max_points} available</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">List size (QOF basis)</div>
+              <div class="value">${listSize ? int(listSize) : "—"}</div>
+              <div class="hint">contractor's reported list</div>
+            </div>
+            <div class="area-stat">
+              <div class="label">Disease registers</div>
+              <div class="value">${Object.keys(p.registers || {}).length}</div>
+              <div class="hint">condition groups</div>
+            </div>
+          </div>`;
+
+        // Disease registers ranked by prevalence with median markers
+        const groups = qof.groups;
+        const groupMedian = qof.benchmarks_staffs.group_prevalence_median || {};
+        const regs = Object.entries(p.registers || {})
+          .filter(([gc, r]) => r.prevalence_pct != null && r.patient_list_type !== "TOTAL")
+          .map(([gc, r]) => ({ gc, ...r, name: groups[gc] || gc, median: groupMedian[gc] }))
+          .sort((a, b) => b.prevalence_pct - a.prevalence_pct)
+          .slice(0, 16);
+        const peakPrev = Math.max(0.5, ...regs.map(r => Math.max(r.prevalence_pct, r.median ?? 0)));
+        const regHtml = regs.map(r => {
+          const fillW = (r.prevalence_pct / peakPrev * 100).toFixed(1);
+          const medianL = r.median != null ? (r.median / peakPrev * 100).toFixed(1) : null;
+          return `
+            <div class="qof-prev-row">
+              <span class="gname">${escapeHtml(r.name)}</span>
+              <span class="reg">${int(r.register)} pts</span>
+              <span class="bar">
+                <span class="fill" style="width:${fillW}%"></span>
+                ${medianL ? `<span class="median" style="left:${medianL}%" title="Staffs median ${r.median}%"></span>` : ""}
+              </span>
+              <span class="pct">${r.prevalence_pct}%</span>
+            </div>`;
+        }).join("");
+
+        // Top + bottom indicators vs Staffs median
+        const indMedian = qof.benchmarks_staffs.indicator_achievement_rate_median || {};
+        const indRows = Object.entries(p.indicators || {})
+          .filter(([code, ind]) => ind.achievement_rate_pct != null && indMedian[code] != null)
+          .map(([code, ind]) => ({
+            code,
+            description: qof.indicators[code]?.description?.replace(/\s+/g, " ").trim() || code,
+            rate: ind.achievement_rate_pct,
+            median: indMedian[code],
+            delta: ind.achievement_rate_pct - indMedian[code],
+          }));
+        const top = [...indRows].sort((a, b) => b.delta - a.delta).slice(0, 3);
+        const bot = [...indRows].sort((a, b) => a.delta - b.delta).slice(0, 3);
+        const indHtml = (rows, dir) => rows.map(r => `
+          <div class="item">
+            <span class="code">${escapeHtml(r.code)}</span>
+            <span class="desc"><div>${escapeHtml(r.description.slice(0, 180))}${r.description.length > 180 ? "…" : ""}</div>
+              <div style="margin-top:2px;color:var(--muted);font-size:0.78rem;">Practice ${r.rate}% · Staffs median ${r.median}%</div></span>
+            <span class="delta ${dir}">${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(1)}pp</span>
+          </div>`).join("");
+
+        const inds = (top.length || bot.length) ? `
+          <h3 style="margin:24px 0 6px; font-size:1rem;">Where this practice stands out</h3>
+          <p class="sub" style="margin-bottom:6px;">Indicators most above and below the Staffs/Stoke median.</p>
+          ${top.length ? `<div class="qof-list" style="margin-top:6px;"><div class="label" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); padding-bottom:4px;">Above peers</div>${indHtml(top, "up")}</div>` : ""}
+          ${bot.length ? `<div class="qof-list" style="margin-top:14px;"><div class="label" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); padding-bottom:4px;">Below peers</div>${indHtml(bot, "down")}</div>` : ""}
+        ` : "";
+
+        body.innerHTML = `
+          ${headline}
+          <h3 style="margin:6px 0 6px; font-size:1rem;">Disease prevalence</h3>
+          <p class="sub" style="margin-bottom:4px;">% of registered patients on each QOF disease register, ranked. Grey bar = Staffs/Stoke median.</p>
+          <div>${regHtml}</div>
+          ${inds}
+        `;
+        view.classList.remove("hidden");
+      } catch (e) {
+        body.innerHTML = `<p class="area-note">Couldn't load QOF: ${escapeHtml(e.message)}</p>`;
+        view.classList.remove("hidden");
+      }
+    }
+
     function renderAllResults(practiceCode) {
       renderCqc(practiceCode);
+      renderQof(practiceCode);
       renderAreaCard(practiceCode);
       renderPatients(practiceCode);
       renderWorkforce(practiceCode);

@@ -1,6 +1,7 @@
 data/*
 !data/imd2019_staffs.json
 !data/cqc_directory_staffs.json
+!data/qof_staffs.json
 nhs_private.pem
 nhs_public.pem
 *.pem
