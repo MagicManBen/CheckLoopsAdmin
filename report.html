@@ -295,6 +295,41 @@
       border-radius: 999px; padding: 3px 10px;
       font-size: 0.78rem; color: var(--ink-soft);
     }
+    /* 5-key-question stripe */
+    .cqc-kq {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin: 14px 0 6px;
+    }
+    .cqc-kq .kq {
+      border-radius: 12px;
+      padding: 14px 10px;
+      text-align: center;
+      color: #fff;
+      font-weight: 700;
+    }
+    .cqc-kq .kq .q { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.9; font-weight: 600; }
+    .cqc-kq .kq .r { margin-top: 4px; font-size: 1rem; }
+    .cqc-kq .kq.Outstanding         { background: #6b21a8; }
+    .cqc-kq .kq.Good                { background: #137a3a; }
+    .cqc-kq .kq.Requires-improvement{ background: #b45309; }
+    .cqc-kq .kq.Inadequate          { background: #b21a1a; }
+    .cqc-kq .kq.no-rating, .cqc-kq .kq.Not-Rated { background: #94a3b8; }
+    .cqc-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 14px;
+      padding: 8px 14px;
+      background: var(--soft); border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--primary);
+      font-weight: 600; font-size: 0.9rem;
+      text-decoration: none;
+    }
+    .cqc-link:hover { background: #e7eefb; }
+    @media (max-width: 600px) {
+      .cqc-kq { grid-template-columns: repeat(2, 1fr); }
+    }
 
     /* Workforce + prescribing tables */
     .table-simple { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 10px; }
@@ -822,15 +857,25 @@
           ? `<div style="margin-top:14px;"><div class="label" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);">${label}</div><div class="cqc-tags">${arr.map(a => `<span class="cqc-tag">${escapeHtml(a)}</span>`).join("")}</div></div>`
           : "";
 
+        const kq = p.key_question_ratings || {};
+        const kqOrder = ["Safe", "Effective", "Caring", "Responsive", "Well-led"];
+        const kqHtml = kqOrder.map(name => {
+          const r = kq[name] || "Not Rated";
+          const cls = r.replace(/\s+/g, "-");
+          return `<div class="kq ${cls}"><div class="q">${escapeHtml(name)}</div><div class="r">${escapeHtml(r)}</div></div>`;
+        }).join("");
+
         const meta = `
           <div class="cqc-headline">
-            <span class="cqc-rating-badge ${ratingClass}">${escapeHtml(rating)}</span>
+            <span class="cqc-rating-badge ${ratingClass}">Overall: ${escapeHtml(rating)}</span>
             <div class="cqc-meta">
               ${pubDate ? `Last published <strong>${escapeHtml(pubDate)}</strong>` : ""}
+              ${p.last_inspection_date ? ` · Inspected <strong>${escapeHtml(p.last_inspection_date)}</strong>` : ""}
               ${since ? ` · Registered since <strong>${escapeHtml(since)}</strong>` : ""}
             </div>
           </div>
-          <div class="area-grid">
+          <div class="cqc-kq">${kqHtml}</div>
+          <div class="area-grid" style="margin-top:18px;">
             <div class="area-stat"><div class="label">Location</div><div class="value" style="font-size:1rem;">${escapeHtml(p["Location Name"] || "")}</div><div class="hint">${escapeHtml(p["Location Postal Code"] || "")}</div></div>
             <div class="area-stat"><div class="label">Provider</div><div class="value" style="font-size:1rem;">${escapeHtml(p["Provider Name"] || "")}</div><div class="hint">${escapeHtml(p["Provider Ownership Type"] || "")}</div></div>
             <div class="area-stat"><div class="label">Registered manager</div><div class="value" style="font-size:1rem;">${escapeHtml(p["Registered manager"] || "—")}</div></div>
@@ -838,7 +883,11 @@
           </div>
           ${tags(p.regulated_activities, "Regulated activities")}
           ${tags(p.service_types, "Service types")}
-          <p class="area-note" style="margin-top:18px;">CQC Location ID: <code>${escapeHtml(p["Location ID"] || "")}</code> · Provider ID: <code>${escapeHtml(p["Provider ID"] || "")}</code></p>
+          ${tags(p.specialisms, "Specialisms")}
+          ${p.cqc_url ? `<a class="cqc-link" href="${escapeHtml(p.cqc_url)}" target="_blank" rel="noreferrer">View full inspection history on CQC website →</a>` : ""}
+          <p class="area-note" style="margin-top:14px;">
+            CQC Location ID <code>${escapeHtml(p["Location ID"] || "")}</code> · Provider ID <code>${escapeHtml(p["Provider ID"] || "")}</code>${p.historical_report_count ? ` · ${p.historical_report_count} historical reports on file` : ""}
+          </p>
         `;
         body.innerHTML = meta;
         view.classList.remove("hidden");
