@@ -39,9 +39,6 @@ jobs:
           TRIGGERED_BY: ${{ github.event.inputs.triggered_by }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
-          NHS_API_KEY: ${{ secrets.NHS_API_KEY }}
-          NHS_PRIVATE_KEY_PEM: ${{ secrets.NHS_PRIVATE_KEY_PEM }}
-          NHS_KID: ${{ secrets.NHS_KID }}
         run: |
           if [ -z "$PRACTICE_CODE" ]; then
             echo "practice_code input is required"

@@ -95,24 +95,20 @@ const PIPELINES = [
     })
   },
   {
-    dataset: "nhs_profile",
-    label: "NHS.uk public profile",
-    script: "scripts/import_nhs_profile.mjs",
+    dataset: "prescribing",
+    label: "Prescribing summary (NHSBSA EPD)",
+    script: "scripts/import_prescribing_summary.mjs",
     needsPostcode: false,
-    optional: true,
     env: () => ({
       PRACTICE_CODE,
-      NHS_API_BASE: process.env.NHS_API_BASE || "https://sandbox.api.service.nhs.uk",
-      NHS_SEARCH_PATH: process.env.NHS_SEARCH_PATH || "/service-search-api",
-      NHS_API_VERSION: "3",
-      NHS_API_KEY: process.env.NHS_API_KEY || "",
-      NHS_KID: process.env.NHS_KID || "checkloops-key-1",
-      NHS_PRIVATE_KEY_PEM: process.env.NHS_PRIVATE_KEY_PEM || ""
+      PRESCRIBING_CSV_URL: process.env.PRESCRIBING_CSV_URL
+        || "https://opendata.nhsbsa.net/dataset/65050ec0-5abd-48ce-989d-defc08ed837e/resource/07442fa4-4701-49a1-bd70-11cdc18ee039/download/epd_202506.csv",
+      PUBLICATION_LABEL: process.env.PRESCRIBING_LABEL || "NHSBSA English Prescribing Dataset (June 2025)"
     })
   },
   {
     dataset: "geography",
-    label: "ONS geography",
+    label: "ONS geography + IMD",
     script: "scripts/import_ons_geography.mjs",
     needsPostcode: true,
     env: (postcode) => ({
@@ -193,15 +189,7 @@ async function main() {
       continue;
     }
     if (pipeline.optional) {
-      const env = pipeline.env(postcode);
-      if (pipeline.dataset === "nhs_profile" && (!env.NHS_API_KEY || !env.NHS_PRIVATE_KEY_PEM)) {
-        await supaUpdate("practice_ingestion_jobs", { id: `eq.${job.id}` }, {
-          status: "skipped",
-          message: "NHS_API_KEY or NHS_PRIVATE_KEY_PEM not set"
-        });
-        console.log(`\n--- ${pipeline.label}: SKIPPED (NHS secrets missing) ---`);
-        continue;
-      }
+      // (no optional pipelines currently — placeholder kept for future per-pipeline secret checks)
     }
 
     console.log(`\n--- ${pipeline.label} ---`);

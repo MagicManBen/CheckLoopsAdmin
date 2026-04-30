@@ -463,15 +463,15 @@
           prescribing_csv_url: extra.csvUrl
         }),
         extras: [
-          { id: "yearMonth",        label: "Year-month (YYYY-MM-01)", default: "2026-03-01" },
-          { id: "publicationLabel", label: "Publication label",       default: "Practice-level prescribing summary, March 2026" },
-          { id: "csvUrl",           label: "Prescribing CSV URL",     default: "", full: true }
+          { id: "yearMonth",        label: "Year-month (YYYY-MM-01)", default: "2025-06-01" },
+          { id: "publicationLabel", label: "Publication label",       default: "NHSBSA English Prescribing Dataset (June 2025)" },
+          { id: "csvUrl",           label: "Prescribing CSV URL",     default: "https://opendata.nhsbsa.net/dataset/65050ec0-5abd-48ce-989d-defc08ed837e/resource/07442fa4-4701-49a1-bd70-11cdc18ee039/download/epd_202506.csv", full: true }
         ]
       },
       {
         id: "imd",
         title: "Indices of Deprivation (LSOA)",
-        desc: "Bulk LSOA-level IMD metrics for the chosen release year.",
+        desc: "Bulk LSOA-level IMD metrics (one-time global load).",
         workflow: "import-imd-lsoa.yml",
         buildInputs: (cfg, extra) => ({
           imd_year: extra.year,
@@ -479,9 +479,9 @@
           imd_csv_url: extra.csvUrl
         }),
         extras: [
-          { id: "year",             label: "IMD year",         default: "2025" },
-          { id: "publicationLabel", label: "Publication label", default: "English Indices of Deprivation 2025" },
-          { id: "csvUrl",           label: "IMD LSOA CSV URL",  default: "", full: true }
+          { id: "year",             label: "IMD year",         default: "2019" },
+          { id: "publicationLabel", label: "Publication label", default: "English Indices of Deprivation 2019" },
+          { id: "csvUrl",           label: "IMD LSOA CSV URL",  default: "https://assets.publishing.service.gov.uk/media/5dc407b440f0b6379a7acc8d/File_7_-_All_IoD2019_Scores__Ranks__Deciles_and_Population_Denominators_3.csv", full: true }
         ]
       },
       {

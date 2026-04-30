@@ -118,7 +118,16 @@ function findIndex(headers, candidates) {
 
 function buildHeaderInfo(headerLine) {
   const rawHeaders = parseCsvLine(headerLine.replace(/^﻿/, ""));
-  const upperHeaders = rawHeaders.map((h) => h.trim().toUpperCase().replaceAll(" ", "_").replaceAll("-", "_"));
+  const upperHeaders = rawHeaders.map((h) =>
+    h
+      .trim()
+      .toUpperCase()
+      .replaceAll(" ", "_")
+      .replaceAll("-", "_")
+      .replace(/[()]/g, "")
+      .replace(/_+/g, "_")
+      .replace(/_$/, "")
+  );
 
   const idxLsoaCode = findIndex(upperHeaders, LSOA_CODE_CANDIDATES);
   if (idxLsoaCode === -1) {
