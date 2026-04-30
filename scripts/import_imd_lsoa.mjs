@@ -8,6 +8,36 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TABLE_NAME = "imd_lsoa_metrics";
 const BATCH_SIZE = 2000;
 
+// Curated set of IMD2019 metrics worth storing (post-uppercase + paren/space-stripped).
+// Skipping these keeps the table to ~25 metrics × ~32K LSOAs ≈ 800K rows.
+const METRIC_KEEP = new Set([
+  "INDEX_OF_MULTIPLE_DEPRIVATION_IMD_SCORE",
+  "INDEX_OF_MULTIPLE_DEPRIVATION_IMD_RANK_WHERE_1_IS_MOST_DEPRIVED",
+  "INDEX_OF_MULTIPLE_DEPRIVATION_IMD_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "INCOME_SCORE_RATE",
+  "INCOME_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "EMPLOYMENT_SCORE_RATE",
+  "EMPLOYMENT_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "EDUCATION,_SKILLS_AND_TRAINING_SCORE",
+  "EDUCATION,_SKILLS_AND_TRAINING_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "HEALTH_DEPRIVATION_AND_DISABILITY_SCORE",
+  "HEALTH_DEPRIVATION_AND_DISABILITY_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "CRIME_SCORE",
+  "CRIME_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "BARRIERS_TO_HOUSING_AND_SERVICES_SCORE",
+  "BARRIERS_TO_HOUSING_AND_SERVICES_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "LIVING_ENVIRONMENT_SCORE",
+  "LIVING_ENVIRONMENT_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "INCOME_DEPRIVATION_AFFECTING_CHILDREN_INDEX_IDACI_SCORE_RATE",
+  "INCOME_DEPRIVATION_AFFECTING_CHILDREN_INDEX_IDACI_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "INCOME_DEPRIVATION_AFFECTING_OLDER_PEOPLE_IDAOPI_SCORE_RATE",
+  "INCOME_DEPRIVATION_AFFECTING_OLDER_PEOPLE_IDAOPI_DECILE_WHERE_1_IS_MOST_DEPRIVED_10%_OF_LSOAS",
+  "TOTAL_POPULATION:_MID_2015_EXCLUDING_PRISONERS",
+  "DEPENDENT_CHILDREN_AGED_0_15:_MID_2015_EXCLUDING_PRISONERS",
+  "POPULATION_AGED_16_59:_MID_2015_EXCLUDING_PRISONERS",
+  "OLDER_POPULATION_AGED_60_AND_OVER:_MID_2015_EXCLUDING_PRISONERS"
+]);
+
 const IMD_YEAR = Number.parseInt((process.env.IMD_YEAR || "2025").trim(), 10);
 const PUBLICATION_LABEL = (process.env.PUBLICATION_LABEL || "English Indices of Deprivation 2025").trim();
 const IMD_CSV_URL = (process.env.IMD_CSV_URL || "").trim();
@@ -201,29 +231,17 @@ async function importRows(csvPath) {
     const lsoaCode = (cols[header.idxLsoaCode] || "").trim();
     if (!lsoaCode) continue;
     lsoaCount += 1;
-    const lsoaName = header.idxLsoaName >= 0 ? (cols[header.idxLsoaName] || "").trim() || null : null;
-    const laCode = header.idxLaCode >= 0 ? (cols[header.idxLaCode] || "").trim() || null : null;
-    const laName = header.idxLaName >= 0 ? (cols[header.idxLaName] || "").trim() || null : null;
-    const regionCode = header.idxRegionCode >= 0 ? (cols[header.idxRegionCode] || "").trim() || null : null;
-    const regionName = header.idxRegionName >= 0 ? (cols[header.idxRegionName] || "").trim() || null : null;
 
     for (const metric of header.metricColumns) {
+      // Skip metrics not in the curated keep-list (drops ~30 columns we'd never read)
+      if (!METRIC_KEEP.has(metric.key)) continue;
       const parsed = maybeNumber(cols[metric.index] || "");
+      if (parsed.numeric === null) continue; // skip unparseable / empty
       batch.push({
         lsoa_code: lsoaCode,
-        lsoa_name: lsoaName,
-        local_authority_code: laCode,
-        local_authority_name: laName,
-        region_code: regionCode,
-        region_name: regionName,
         imd_year: IMD_YEAR,
-        publication_label: PUBLICATION_LABEL || null,
         metric_key: metric.key,
-        metric_value: parsed.numeric,
-        metric_value_text: parsed.text,
-        source_csv_url: IMD_CSV_URL,
-        source_csv_name: sourceCsvName,
-        imported_at: nowIso
+        metric_value: parsed.numeric
       });
       if (batch.length >= BATCH_SIZE) {
         await upsertBatch(batch);
