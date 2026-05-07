@@ -20,6 +20,13 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const ZIP_PATH = path.join(DATA_DIR, `qof_${QOF_YEAR}.zip`);
 const EXTRACT_DIR = path.join(DATA_DIR, `qof_${QOF_YEAR}`);
 
+// QOF filename convention: "2024-25" -> "2425" (last 2 digits of each year)
+function qofFileSuffix(year) {
+  const m = year.match(/^(\d{4})-(\d{2})$/);
+  if (!m) throw new Error(`Unexpected QOF_YEAR format: ${year}. Expected YYYY-YY (e.g. 2024-25).`);
+  return m[1].slice(-2) + m[2];
+}
+
 function parseCSVLine(line) {
   const fields = [];
   let cur = "";
@@ -99,7 +106,7 @@ function parseCsvFile(filePath) {
 }
 
 async function importIndicators() {
-  const file = path.join(EXTRACT_DIR, `MAPPING_INDICATORS_${QOF_YEAR.replace("-", "")}.csv`);
+  const file = path.join(EXTRACT_DIR, `MAPPING_INDICATORS_${qofFileSuffix(QOF_YEAR)}.csv`);
   if (!fs.existsSync(file)) throw new Error(`Indicator mapping file not found: ${file}`);
   const { headers, rows } = parseCsvFile(file);
   const idx = (name) => headers.indexOf(name);
@@ -127,7 +134,7 @@ async function importIndicators() {
 }
 
 async function importPrevalence(indicatorsByGroup) {
-  const file = path.join(EXTRACT_DIR, `PREVALENCE_${QOF_YEAR.replace("-", "")}.csv`);
+  const file = path.join(EXTRACT_DIR, `PREVALENCE_${qofFileSuffix(QOF_YEAR)}.csv`);
   if (!fs.existsSync(file)) throw new Error(`Prevalence file not found: ${file}`);
   const { headers, rows } = parseCsvFile(file);
   const idx = (name) => headers.indexOf(name);
@@ -162,7 +169,7 @@ async function importPrevalence(indicatorsByGroup) {
 }
 
 async function importAchievement() {
-  const yr = QOF_YEAR.replace("-", "");
+  const yr = qofFileSuffix(QOF_YEAR);
   const regions = [
     "MIDLANDS", "NORTH_EAST_AND_YORKSHIRE", "NORTH_WEST",
     "SOUTH_EAST", "SOUTH_WEST", "EAST_OF_ENGLAND", "LONDON",
