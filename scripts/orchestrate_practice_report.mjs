@@ -116,6 +116,17 @@ const PIPELINES = [
       POSTCODE: postcode,
       POSTCODES_API_BASE: "https://api.postcodes.io"
     })
+  },
+  {
+    dataset: "qof",
+    label: "QOF achievement & prevalence",
+    script: "scripts/import_qof.mjs",
+    needsPostcode: false,
+    env: () => ({
+      PRACTICE_CODE,
+      QOF_ZIP_URL: process.env.QOF_ZIP_URL || "https://files.digital.nhs.uk/95/4708D7/QOF2425.zip",
+      QOF_YEAR: process.env.QOF_YEAR || "2024-25"
+    })
   }
 ];
 
