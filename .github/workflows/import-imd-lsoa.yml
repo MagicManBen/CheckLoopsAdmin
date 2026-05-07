@@ -1,0 +1,33 @@
+name: Import IMD LSOA Metrics
+
+on:
+  workflow_dispatch:
+    inputs:
+      imd_csv_url:
+        description: "URL to IMD 2019 CSV (File 7 - All Scores, Ranks, Deciles)"
+        required: false
+        default: "https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/845345/File_7_-_All_IoD2019_Scores__Ranks__Deciles_and_Population_Denominators_3.csv"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run IMD LSOA importer
+        env:
+          IMD_CSV_URL: ${{ github.event.inputs.imd_csv_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing required SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY secrets."
+            exit 1
+          fi
+          node scripts/import_imd_lsoa.mjs
