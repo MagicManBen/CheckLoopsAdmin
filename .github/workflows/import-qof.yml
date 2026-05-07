@@ -1,0 +1,46 @@
+name: Import QOF for one practice
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "GP practice ODS code (e.g. M83076)"
+        required: true
+      qof_zip_url:
+        description: "URL to QOF year ZIP (raw CSV bundle)"
+        required: false
+        default: "https://files.digital.nhs.uk/95/4708D7/QOF2425.zip"
+      qof_year:
+        description: "QOF year label (e.g. 2024-25)"
+        required: false
+        default: "2024-25"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run QOF importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          QOF_ZIP_URL: ${{ github.event.inputs.qof_zip_url }}
+          QOF_YEAR: ${{ github.event.inputs.qof_year }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$PRACTICE_CODE" ]; then
+            echo "practice_code input is required"
+            exit 1
+          fi
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing Supabase secrets."
+            exit 1
+          fi
+          node scripts/import_qof.mjs
