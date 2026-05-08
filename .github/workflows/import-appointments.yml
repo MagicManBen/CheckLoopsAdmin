@@ -1,0 +1,39 @@
+name: Import GP Appointments
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "Target practice ODS code (e.g. M83076)"
+        required: false
+        default: ""
+      sub_icb_code:
+        description: "Sub-ICB code to import all peer practices (e.g. 05W)"
+        required: false
+        default: ""
+      appt_zip_url:
+        description: "URL of the Practice_Level_Crosstab ZIP"
+        required: false
+        default: "https://files.digital.nhs.uk/BC/A65BD0/Practice_Level_Crosstab_Feb_26.zip"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          SUB_ICB_CODE: ${{ github.event.inputs.sub_icb_code }}
+          APPT_ZIP_URL: ${{ github.event.inputs.appt_zip_url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$PRACTICE_CODE" ] && [ -z "$SUB_ICB_CODE" ]; then
+            echo "Provide practice_code or sub_icb_code"
+            exit 1
+          fi
+          node scripts/import_appointments.mjs
