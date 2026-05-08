@@ -1,0 +1,38 @@
+name: Import NHS Payments to GP Practices
+
+on:
+  workflow_dispatch:
+    inputs:
+      payments_csv_url:
+        description: "URL to NHS Payments to General Practice CSV"
+        required: false
+        default: "https://files.digital.nhs.uk/D0/C6D126/nhspaymentsgp-24-25-prac-csv.csv"
+      payment_year:
+        description: "Year label (e.g. 2024-25)"
+        required: false
+        default: "2024-25"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run NHS Payments importer
+        env:
+          PAYMENTS_CSV_URL: ${{ github.event.inputs.payments_csv_url }}
+          PAYMENT_YEAR: ${{ github.event.inputs.payment_year }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing Supabase secrets."
+            exit 1
+          fi
+          node scripts/import_practice_payments.mjs
