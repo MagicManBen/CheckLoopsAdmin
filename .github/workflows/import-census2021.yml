@@ -1,0 +1,25 @@
+name: Import Census 2021 LSOA Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      lsoa_filter:
+        description: "Comma-separated LSOA codes to filter (blank = all 32K+ LSOAs)"
+        required: false
+        default: ""
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run importer
+        env:
+          LSOA_FILTER: ${{ github.event.inputs.lsoa_filter }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: node scripts/import_census2021.mjs
