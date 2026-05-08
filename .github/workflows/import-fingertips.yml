@@ -1,0 +1,35 @@
+name: Import Fingertips Indicators
+
+on:
+  workflow_dispatch:
+    inputs:
+      practice_code:
+        description: "Target practice ODS code (e.g. M83076)"
+        required: false
+        default: ""
+      sub_icb_code:
+        description: "Sub-ICB code to import peer practices (e.g. 05W)"
+        required: false
+        default: ""
+      profile_id:
+        description: "Fingertips profile ID (20 = National GP Profiles)"
+        required: false
+        default: "20"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run importer
+        env:
+          PRACTICE_CODE: ${{ github.event.inputs.practice_code }}
+          SUB_ICB_CODE: ${{ github.event.inputs.sub_icb_code }}
+          PROFILE_ID: ${{ github.event.inputs.profile_id }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_KEY }}
+        run: node scripts/import_fingertips.mjs
